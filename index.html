@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QueueSmart - User Screens</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="hero">
+    <div class="hero-content">
+      <p class="tagline">Smart Queue Management Application</p>
+      <h1>QueueSmart</h1>
+      <p class="subtitle">
+        User Portal for joining queues, viewing wait times, tracking status updates,
+        and checking queue history.
+      </p>
+
+    </div>
+  </header>
+<!-- will display navbar -->
+  <nav class="navbar">
+    <button class="nav-btn active" data-screen="dashboard">User Dashboard</button>
+    <button class="nav-btn" data-screen="joinQueue">Join Queue</button>
+    <button class="nav-btn" data-screen="queueStatus">Queue Status</button>
+    <button class="nav-btn" data-screen="history">History</button>
+  </nav>
+
+  <main>
+
+    <!-- this section gives you the Dashboard Overview of current queue status, active services, and notifications summary. -->
+    <section id="dashboard" class="screen active-screen">
+      <div class="section-heading">
+        <h2>User Dashboard</h2>
+        <p>Overview of current queue status, active services, and notifications summary.</p>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="card highlight-card">
+          <h3>Overview of Current Queue Status</h3>
+          <p id="dashboardQueueStatus">You are not currently in a queue.</p>
+        </div>
+
+        <div class="card">
+          <h3>Notifications Summary</h3>
+          <ul id="notificationList">
+            <li>No notifications yet.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Active Services Available</h3>
+        <div id="activeServices" class="service-container"></div>
+      </div>
+    </section>
+
+    <!-- this implement joins the queue which allows to Select a service, view estimated wait time, and join or leave a queue.-->
+    <section id="joinQueue" class="screen">
+      <div class="section-heading">
+        <h2>Join Queue Screen</h2>
+        <p>Select a service, view estimated wait time, and join or leave a queue.</p>
+      </div>
+
+      <div class="card form-card">
+        <form id="joinQueueForm">
+
+          <label for="serviceSelect">Select a Service:</label>
+          <select id="serviceSelect" required>
+            <option value="">-- Choose a Service --</option>
+          </select>
+
+          <p id="serviceError" class="error"></p>
+
+          <div class="wait-box">
+            <h3>Estimated Wait Time</h3>
+            <p id="estimatedWaitTime">Select a service to view estimated wait time.</p>
+            <small id="queueLengthText">Queue length will appear after selecting a service.</small>
+          </div>
+
+          <div class="button-row">
+            <button type="submit" class="primary-btn">Join Queue</button>
+            <button type="button" class="danger-btn" id="leaveQueueBtn">Leave Queue</button>
+          </div>
+
+        </form>
+      </div>
+    </section>
+
+    <!-- this will display the queue status, which will help View current position, estimated wait time, and status updates.
+
+  -->
+    <section id="queueStatus" class="screen">
+      <div class="section-heading">
+        <h2>Queue Status Screen</h2>
+        <p>View current position, estimated wait time, and status updates.</p>
+      </div>
+
+      <div class="card">
+        <div class="status-header">
+          <h3 id="statusServiceName">No Active Queue</h3>
+          <span id="statusBadge" class="status-badge neutral">Not Joined</span>
+        </div>
+
+        <div class="status-grid">
+          <div class="status-box">
+            <p>Current Position</p>
+            <h2 id="currentPosition">-</h2>
+          </div>
+
+          <div class="status-box">
+            <p>Estimated Wait Time</p>
+            <h2 id="statusWaitTime">-</h2>
+          </div>
+
+          <div class="status-box">
+            <p>Status Update</p>
+            <h2 id="queueStatusText">Not Joined</h2>
+          </div>
+        </div>
+
+        <div class="progress-bar">
+          <div id="progressFill"></div>
+        </div>
+
+        <p id="progressMessage">Join a queue to see your queue progress.</p>
+
+        <button class="secondary-btn" id="simulateStatusBtn">Simulate Status Update</button>
+      </div>
+    </section>
+
+    <!-- this is used to show the history of past queues joined with date, service name, and outcome.-->
+    <section id="history" class="screen">
+      <div class="section-heading">
+        <h2>History Screen</h2>
+        <p>List of past queues joined with date, service name, and outcome.</p>
+      </div>
+
+      <div class="card">
+        <h3>Past Queues Joined</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Service Name</th>
+                <th>Outcome</th>
+              </tr>
+            </thead>
+
+            <tbody id="historyTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>QueueSmart Front-End Prototype | HTML, CSS, JavaScript</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
