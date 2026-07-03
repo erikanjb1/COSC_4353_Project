@@ -40,6 +40,25 @@ button{
     border-bottom: 2px solid rgba(255, 255, 255, 0.2);
 }
 
+.sidebar_logo{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo_symbol{
+    width: 30px;
+    height: 30px;
+    background-color: rgb(223, 8, 8);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+}
+
 .logo_text{
     font-size: 15px;
     color: rgba(255, 255, 255, 0.8);
