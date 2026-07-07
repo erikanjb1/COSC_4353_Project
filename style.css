@@ -262,7 +262,7 @@
     min-height: 22px;
     margin-top: 8px;
   }
-  
+
   .wait-box {
     margin: 22px 0;
     padding: 20px;
@@ -429,6 +429,46 @@
     margin-bottom: 10px;
     color: #374151;
   }
+
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 30;
+    pointer-events: none;
+  }
+
+  .toast {
+    max-width: 360px;
+    padding: 14px 18px;
+    border-radius: 16px;
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.22);
+    transform: translateY(-20px);
+    opacity: 0;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .toast_success {
+    background: linear-gradient(135deg, #0f766e, #0f4c81);
+  }
+
+  .toast_error {
+    background: linear-gradient(135deg, #b91c1c, #991b1b);
+  }
+
+  .toast_info {
+    background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+  }
   
   
   .table-wrapper {
@@ -508,5 +548,15 @@
     .status-header {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .toast-container {
+      top: 12px;
+      right: 12px;
+      left: 12px;
+    }
+
+    .toast {
+      max-width: none;
     }
   }

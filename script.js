@@ -156,12 +156,12 @@ const services = [
           " people are currently waiting for " +
           selectedService.name +
           ".";
-  
+
         document.getElementById("serviceError").textContent = "";
       } else {
         document.getElementById("estimatedWaitTime").textContent =
           "Select a service to view estimated wait time.";
-  
+
         document.getElementById("queueLengthText").textContent =
           "Queue length will appear after selecting a service.";
       }
@@ -184,8 +184,11 @@ const services = [
       }
   
       if (currentQueue !== null) {
-        document.getElementById("serviceError").textContent =
-          "You are already in a queue. Leave the current queue before joining another one.";
+        document.getElementById("serviceError").textContent = "";
+        showToast(
+          "You are already in a queue. Leave the current queue before joining another one.",
+          "error"
+        );
         return;
       }
   
@@ -205,11 +208,15 @@ const services = [
   
       selectedService.queueLength++;
   
+      document.getElementById("serviceError").textContent = "";
+      showToast(
+        "You have successfully joined " + selectedService.name + ".",
+        "success"
+      );
+
       addNotification("You joined the " + selectedService.name + " queue.");
   
       updateAllScreens();
-  
-      alert("You have successfully joined the " + selectedService.name + " queue.");
     });
   }
   
@@ -225,7 +232,7 @@ const services = [
   // Leaves the queue
   function leaveQueue() {
     if (currentQueue === null) {
-      alert("You are not currently in a queue.");
+      showToast("You are not currently in a queue.", "error");
       return;
     }
   
@@ -248,14 +255,14 @@ const services = [
     currentQueue = null;
   
     updateAllScreens();
-  
-    alert("You have left the queue.");
+
+    showToast("You have left the queue.", "info");
   }
   
   // Simulate queue status updates
   function simulateStatusUpdate() {
     if (currentQueue === null) {
-      alert("Join a queue first to simulate status updates.");
+      showToast("Join a queue first to simulate status updates.", "error");
       return;
     }
   
@@ -269,13 +276,28 @@ const services = [
   
       currentQueue.status = "Waiting";
   
-      addNotification("Queue update: your position moved up.");
+      addNotification(
+        "Queue update: You are now #" +
+          currentQueue.position +
+          " in line. Estimated wait: " +
+          currentQueue.waitTime +
+          " minutes."
+      );
+      showToast(
+        "Queue update: You are now #" +
+          currentQueue.position +
+          " in line. Estimated wait: " +
+          currentQueue.waitTime +
+          " minutes.",
+        "info"
+      );
     } else if (currentQueue.position === 2) {
       currentQueue.position = 1;
       currentQueue.waitTime = 5;
       currentQueue.status = "Almost Ready";
   
-      addNotification("Status update: your turn is almost ready.");
+      addNotification("You're next in line. Estimated wait: 5 minutes.");
+      showToast("You're next in line. Estimated wait: 5 minutes.", "info");
     } else {
       currentQueue.status = "Served";
       currentQueue.waitTime = 0;
@@ -287,6 +309,7 @@ const services = [
       });
   
       addNotification("You have been served for " + currentQueue.serviceName + ".");
+      showToast("You have been served for " + currentQueue.serviceName + ".", "success");
   
       updateAllScreens();
   
