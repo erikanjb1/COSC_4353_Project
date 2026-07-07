@@ -225,6 +225,29 @@ button{
     50% { opacity: 0.4; }
 }
 
+.notification{
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: rgb(17, 24, 39);
+    color: white;
+    padding: 11px 18px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 999;
+}
+
+.notification.show{
+    opacity: 1;
+    transform: translateY(0);
+}
+
 .site_footer{
     margin-top: auto;
     padding: 16px 36px;
@@ -234,4 +257,319 @@ button{
     gap: 10px;
     font-size: 12px;
     color: rgb(156, 163, 175);
+}
+
+/* below is everything from admin_script.js*/
+.page_content{
+    flex: 1;
+    padding: 32px 36px;
+    max-width: 1100px;
+    width: 100%;
+}
+
+.page_header{
+    margin-bottom: 28px;
+}
+
+.page_header_row{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.page_title{
+    font-size: 22px;
+    font-weight: 700;
+    color: rgb(17, 24, 39);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.page_subtitle{
+    font-size: 13px;
+    color: rgb(107, 114, 128);
+    margin-top: 3px;
+    line-height: 1.5;
+}
+
+.page_actions{
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/*here is the button*/
+
+.btn{
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid rgb(209, 213, 219);
+    background: white;
+    color: rgb(55, 65, 81);
+    cursor: pointer;
+    transition: background 0.1s ease, box-shadow 0.1s ease;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.btn:hover{
+    background-color: rgb(236, 238, 240);
+}
+
+.btn:active{
+    transform: translateY(1px);
+}
+
+.btn:disabled{
+    opacity: 0.45;
+    cursor: not-allowed; 
+    box-shadow: none;
+}
+
+.btn_primary{
+    background: rgb(17, 24, 39);
+    color: white;
+    border-color: rgb(17, 24, 39);
+}
+
+.btn_primary:hover{
+    background: rgb(31, 41, 55);
+    border-color: rgb(31, 41, 55);
+}
+
+.btn_danger{
+    background: rgba(220,38,38,0.10);
+    color: red;
+    border-color: rgba(220,38,38,0.20);
+    box-shadow: none;
+}
+
+.btn_danger:hover{
+    background-color: rgba(220,38,38,0.16);
+}
+
+.btn_ghost{
+    background: transparent;
+    border-color: transparent;
+    color: rgb(107, 114, 128);
+    box-shadow: none;
+}
+
+.btn_ghost:hover{
+    background: rgb(243, 245, 248);
+    color: rgb(17, 24, 39);
+}
+
+.btn_sm{
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+/* stuff for stat grid*/
+
+.stat_grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.stat_card{
+    background: white;
+    border: 1px solid rgb(229, 231, 235);
+    border-radius: 10px;
+    padding: 20px 22px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.stat_eyebrow{
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(107, 114, 128);
+    margin-bottom: 10px;
+}
+
+.stat_value{
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    font-family: inherit;
+    color: rgb(17, 24, 39);
+}
+
+.stat_value span{
+    font-size: 16px;
+    font-weight: 500;
+    color: rgb(107, 114, 128);
+    margin: 2px;
+}
+
+.stat_meta{
+    font-size: 12px;
+    color: rgb(107, 114, 128);
+    margin-top: 8px;
+}
+
+.section_heading{
+    font-size: 12px;
+    font-weight: 600;
+    color: rgb(107, 114, 128);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+/* dashboard stuff*/
+
+._grid{
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.service_card{
+    background: white;
+    border: 1px solid rgb(229, 231, 235);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.15s ease;
+}
+
+.service_card:hover{
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px -4px rgba(0,0,0,0.10);;
+}
+
+.service_card_top{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 18px 0;
+}
+
+.service_card_name{
+    font-size: 15px;
+    font-weight: 700;
+    color: rgb(17, 24, 39);
+    margin-bottom: 4px;
+}
+
+.service_card_desc{
+    font-size: 12px;
+    color: rgb(107, 114, 128);
+    line-height: 1.5;
+}
+
+.service_card_meta{
+    display: flex;
+    gap: 16px;
+    padding: 14px 18px;
+    border-top: 1px solid rgb(229, 231, 235);
+    margin-top: 14px;
+}
+
+.meta_item{
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.meta_label{
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 600;
+    color: rgb(156, 163, 175);
+}
+
+.meta_val{
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    color: rgb(17, 24, 39);
+}
+
+.service_card_footer{
+    display: flex;
+    align-items: center;
+    justify-self: space-between;
+    gap: 10px;
+    padding: 11px 16px;
+    background: rgb(243, 245, 248);
+    border-top: 1px solid rgb(229, 231, 235);
+}
+
+.service_card_footer .btn_row{
+    display: flex;
+    gap: 8px;
+}
+
+.status_pill{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status_pill .dot{
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.pill_open{
+    background: rgba(22,163,74,0.10);
+    color: rgb(22, 163, 74);
+}
+
+.pill_open .dot{
+    background: rgb(22, 163, 74);
+}
+
+.pill_closed{
+    background: rgba(0,0,0,0.05);
+    color: rgb(107, 114, 128);
+}
+
+.pill_closed .dot{
+    background: rgb(156, 163, 175);
+}
+
+.priority_badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+}
+
+.priority_high{
+    background: rgba(220,38,38,0.10);
+    color: red;
+}
+
+.priority_medium{
+    background: rgba(217,119,6,0.10);
+    color: rgb(217, 119, 6);
+}
+
+.priority_low{
+    background: rgba(22,163,74,0.10);
+    color: rgb(22, 163, 74);
 }
