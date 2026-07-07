@@ -196,6 +196,12 @@ const services = [
         waitTime: selectedService.waitTime,
         status: "Waiting"
       };
+
+      historyData.unshift({
+        date: getTodayDate(),
+        serviceName: selectedService.name,
+        outcome: "Joined Queue"
+      });
   
       selectedService.queueLength++;
   
@@ -408,7 +414,7 @@ const services = [
       return;
     }
   
-    notifications.forEach(function (notification) {
+    notifications.slice(0, 10).forEach(function (notification) {
       const li = document.createElement("li");
       li.textContent = notification;
       notificationList.appendChild(li);
