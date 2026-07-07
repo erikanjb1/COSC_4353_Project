@@ -19,7 +19,8 @@ section {
     background-position: center;
 }
 
-.login-box {
+.login-box,
+.register-box {
     position: relative;
     width: 400px;
     min-height: 450px;
