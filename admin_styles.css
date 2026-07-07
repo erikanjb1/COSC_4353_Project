@@ -115,7 +115,7 @@ button{
 .sidebar_footer{
     margin-top: auto;
     padding: 12px 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.43);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 
 }
 
@@ -1053,6 +1053,24 @@ button{
 .modal_overlay.is_open{
     opacity: 1;
     pointer-events: all;
+}
+
+.modal{
+    background: white;
+    border: 1px solid rgb(229, 231, 235);
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    width: 380px;
+    padding: 28px 22px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transform: translateY(8px) scale(0.98);
+    transition: transform 0.18s ease;
+}
+
+.modal_overlay.is_open .modal{
+    transform: translateY(0) scale(1);
 }
 
 .modal_icon{
