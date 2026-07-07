@@ -168,7 +168,7 @@ function renderDashboard() {
             <div class="stat_card">
                 <div class="stat_eyebrow">Longest wait</div>
                 <div class="stat_value">${longestWait()}<span>min</span></div>
-                <div class="stat_meta">Across all queues</div>
+                <div class="stat_meta">Worst-case projection</div>
             </div>
         </div>
         <div class="section_heading">All services</div>
@@ -187,7 +187,7 @@ function renderServices() {
                 <div class="svc_row_desc">${esc(s.description)}</div>
             </div>
             <div>
-                <span class="priority_badge priority-${s.priority}">${cap(s.priority)}</span>
+                <span class="priority_badge priority_${s.priority}">${cap(s.priority)}</span>
             </div>
             <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600">${s.duration}m</div>
             <div class="svc_row_actions">
@@ -224,6 +224,11 @@ function renderServices() {
                     <div class="field" data-field="description">
                         <label for="f_desc">Description</label>
                         <textarea id="f_desc" name="description" placeholder="What happens during this service?">${esc(f.description)}</textarea>
+                        <div class="field_error" hidden></div>
+                    </div>
+                    <div class="field" data-field="duration">
+                        <label for="f_duration">Expected duration <span class="hint">minutes</span></label>
+                        <input id="f_duration" name="duration" type="number" min="1" step="1" value="${esc(f.duration)}" placeholder="e.g. 15" />
                         <div class="field_error" hidden></div>
                     </div>
                     <div class="field" data-field="priority">
@@ -367,7 +372,7 @@ function renderQueue(){
             <div class="q_actions">
                 <button class="icon_btn" data-action="move_up" data-index="${i}" ${i === 0 ? "disabled":""} title="Move up">▲</button>
                 <button class="icon_btn" data-action="move_down" data-index="${i}" ${i === svc.queue.length -1 ? "disabled":""} title="Move down">▼</button>
-                <button class="icon_btn is-danger" data-action="remove_entry" data-index="${i}" title="Removed">X</button>
+                <button class="icon_btn is_danger" data-action="remove_entry" data-index="${i}" title="Removed">X</button>
             </div>
         </div>`).join("")
         :`<div class="empty_state" style="border-radius:0; border:none">
@@ -427,10 +432,12 @@ function renderQueue(){
                 </div>
                 <hr class="info_divider"/>
                 <div class="info_row">
+                    <span class="info_row_label">Status</span>
                     <span class="status_pill ${svc.status === "open" ? "pill_open" : "pill_closed"}" style="font-size: 11px"><span class="dot"></span>${cap(svc.status)}</span>
                 </div>
                 <div class="info_row">
-                    <span class="priority_badge priority-${svc.priority}" style="font-size: 11px">${cap(svc.priority)}</span>
+                    <span class="info_row_label">Priority</span>
+                    <span class="priority_badge priority_${svc.priority}" style="font-size: 11px">${cap(svc.priority)}</span>
                 </div>
                 <hr class="info_divider"/>
                 <div class="info_row">
@@ -439,11 +446,11 @@ function renderQueue(){
                 </div>
                 <div class="info_row">
                     <span class="info_row_label">Avg. duration</span>
-                    <span class="info_row_val">${svc.duration}</span>
+                    <span class="info_row_val">${svc.duration}m</span>
                 </div>
                 <div class="info_row">
                     <span class="info_row_label">Total est. wait</span>
-                    <span class="info_row_val">${svc.queue.length * svc.duration}</span>
+                    <span class="info_row_val">${svc.queue.length * svc.duration}m</span>
                 </div>
                 <hr class="info_border"/>
                 <button class="btn btn_sm" data-action="toggle_status" data-id="${svc.id}" style="width: 100%; justify-content: center">
@@ -477,7 +484,7 @@ function serveNext(serviceId){
     };
     
     if(row){
-        row.classList.add("is-leaving");
+        row.classList.add("is_leaving");
         setTimeout(finish, 200);
     }
     else{
@@ -508,7 +515,7 @@ function removeQueueItem(serviceId, index){
 
 const modalHTML = `
     <div class="modal_overlay" id="modal_overlay">
-        <div class="modal" role"dialog">
+        <div class="modal" role="dialog">
             <div class="modal_icon">
                 <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 7v5M11 15h.01" 
                 stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9.26 3.5L2 17a2 2 0 001.74 3h14.52A2 2 0 0020 17L12.74 3.5a2 2 0 00-3.48 0z" 
@@ -533,22 +540,22 @@ const modalOverlay = document.getElementById("modal_overlay");
 function showModal(message, onConfirm){
     document.getElementById("modal_message").textContent = message;
     modalCallback = onConfirm;
-    modalOverlay.classList.add("is-open");
+    modalOverlay.classList.add("is_open");
 }
 
 document.getElementById("modal_confirm").addEventListener("click", () => {
-    modalOverlay.classList.remove("is-open");
+    modalOverlay.classList.remove("is_open");
     if (modalCallback) { modalCallback(); modalCallback = null; }
   });
 
   document.getElementById("modal_cancel").addEventListener("click", () => {
-    modalOverlay.classList.remove("is-open");
+    modalOverlay.classList.remove("is_open");
     modalCallback = null;
   });
 
 modalOverlay.addEventListener("click", (e) => {
     if (e.target === modalOverlay) {
-      modalOverlay.classList.remove("is-open");
+      modalOverlay.classList.remove("is_open");
       modalCallback = null;
     }
   });
@@ -602,11 +609,11 @@ document.addEventListener("click", (e) => {
             break;
         }
 
-        case "delete-service":{
+        case "delete_service":{
             const s = getService(id);
             showModal(`Delete "${s.name}"? This can't be undone.`, () => {
                 state.services = state.services.filter((x) => x.id !== id);
-                if(state.editingServiceId === id && state.services.length){
+                if(state.selectedServiceId === id && state.services.length){
                     state.selectedServiceId = state.services[0].id;
                 }
                 showNotification(`"${s.name}" deleted`);
@@ -615,16 +622,16 @@ document.addEventListener("click", (e) => {
             });
             break;
         }
-        case "move-up":{
+        case "move_up":{
             moveQueueItem(state.selectedServiceId, index, -1); 
             break;
         }
 
-        case "move-down":{
+        case "move_down":{
             moveQueueItem(state.selectedServiceId, index, +1);
             break;
         }
-        case "remove-entry":{
+        case "remove_entry":{
             removeQueueItem(state.selectedServiceId, index);
             break;
         }
