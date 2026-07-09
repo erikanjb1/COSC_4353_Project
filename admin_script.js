@@ -217,13 +217,13 @@ function renderServices() {
             <form id="service_form" novalidate>
                 <div class="card_body">
                     <div class="field" data-field="name">
-                        <label for="f_name"><span>Service name <span class="required_marker" aria-hidden="true">*</span></span><span class="hint" id="name_count">${f.name.length}/100</span></label>
-                        <input id="f_name" name="name" type="text" maxlength="100" value="${esc(f.name)}" placeholder="e.g. General Advising" autocomplete="off" required />
+                        <label for="f_name"><span>Service name <span class="required_marker" aria-hidden="true">*</span></span><span class="hint" id="name_count">${f.name.length}/20</span></label>
+                        <input id="f_name" name="name" type="text" maxlength="20" value="${esc(f.name)}" placeholder="e.g. General Advising" autocomplete="off" required />
                         <div class="field_error" hidden></div>
                     </div>
                     <div class="field" data-field="description">
-                        <label for="f_desc"><span>Description <span class="required_marker" aria-hidden="true">*</span></span></label>
-                        <textarea id="f_desc" name="description" placeholder="What happens during this service?" required>${esc(f.description)}</textarea>
+                        <label for="f_desc"><span>Description <span class="required_marker" aria-hidden="true">*</span></span><span class="hint" id="desc_count">${f.description.length}/30</span></label>
+                        <textarea id="f_desc" name="description" maxlength="30" placeholder="What happens during this service?" required>${esc(f.description)}</textarea>
                         <div class="field_error" hidden></div>
                     </div>
                     <div class="field" data-field="duration">
@@ -261,7 +261,10 @@ function renderServices() {
 
     const nameInput = document.getElementById("f_name");
     const nameCount = document.getElementById("name_count");
-    nameInput.addEventListener("input", () => {nameCount.textContent = `${nameInput.value.length}/100`;});
+    nameInput.addEventListener("input", () => {nameCount.textContent = `${nameInput.value.length}/20`;});
+    const descInput = document.getElementById("f_desc");
+    const descCount = document.getElementById("desc_count");
+    descInput.addEventListener("input", () => {descCount.textContent = `${descInput.value.length}/30`;});
     document.getElementById("service_form").addEventListener("submit", onServiceSubmit);
 }
 
@@ -297,8 +300,12 @@ function onServiceSubmit(e){
         setFieldError("name", "Service name is required.");
         valid = false;
     }
-    else if(name.length > 100){
-        setFieldError("name", "Must be 100 characters or less.");
+    else if(name.length > 20){
+        setFieldError("name", "Must be 20 characters or less.");
+        valid = false;
+    }
+    else if(description.length > 30){
+        setFieldError("description", "Description must be 30 characters or less.");
         valid = false;
     }
     else{
