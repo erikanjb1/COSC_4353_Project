@@ -49,9 +49,19 @@ h1 {
 }
 
 .input-box {
+    position: relative;
     width: 310px;
     margin: 30px 0;
     border-bottom: 2px solid rgb(0, 96, 175);
+}
+
+.required-marker {
+    position: absolute;
+    left: -14px;
+    top: 16px;
+    color: #ff0000;
+    font-size: 1.1em;
+    font-weight: 700;
 }
 
 .input-box.incorrect {
@@ -71,7 +81,7 @@ h1 {
 
 .input-box label {
     position: absolute;
-    right: 40px;
+    right: 8px;
     font-size: 1.2em;
     line-height: 57px;
 }

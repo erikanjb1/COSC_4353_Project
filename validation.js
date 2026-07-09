@@ -28,15 +28,18 @@ form.addEventListener('submit', (e) => {
 
 function getLoginFormErrors(username, password) {
     let errors = []
-    if (username == null) {
+    if (username.trim() === '') {
         errors.push("Username is required")
         username_input.parentElement.classList.add('incorrect')
     } else {
         username_input.parentElement.classList.remove('incorrect')
     }
 
-    if (password == null) {
+    if (password === '') {
         errors.push("Password is required")
+        password_input.parentElement.classList.add('incorrect')
+    } else if (password.length < 8) {
+        errors.push("Password must be at least 8 characters")
         password_input.parentElement.classList.add('incorrect')
     } else {
         password_input.parentElement.classList.remove('incorrect')
