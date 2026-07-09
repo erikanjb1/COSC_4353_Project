@@ -217,18 +217,18 @@ function renderServices() {
             <form id="service_form" novalidate>
                 <div class="card_body">
                     <div class="field" data-field="name">
-                        <label for="f_name">Service name <span class="hint" id="name_count">${f.name.length}/100</span></label>
-                        <input id="f_name" name="name" type="text" maxlength="100" value="${esc(f.name)}" placeholder="e.g. General Advising" autocomplete="off" />
+                        <label for="f_name"><span>Service name <span class="required_marker" aria-hidden="true">*</span></span><span class="hint" id="name_count">${f.name.length}/100</span></label>
+                        <input id="f_name" name="name" type="text" maxlength="100" value="${esc(f.name)}" placeholder="e.g. General Advising" autocomplete="off" required />
                         <div class="field_error" hidden></div>
                     </div>
                     <div class="field" data-field="description">
-                        <label for="f_desc">Description</label>
-                        <textarea id="f_desc" name="description" placeholder="What happens during this service?">${esc(f.description)}</textarea>
+                        <label for="f_desc"><span>Description <span class="required_marker" aria-hidden="true">*</span></span></label>
+                        <textarea id="f_desc" name="description" placeholder="What happens during this service?" required>${esc(f.description)}</textarea>
                         <div class="field_error" hidden></div>
                     </div>
                     <div class="field" data-field="duration">
-                        <label for="f_duration">Expected duration <span class="hint">minutes</span></label>
-                        <input id="f_duration" name="duration" type="number" min="1" step="1" value="${esc(f.duration)}" placeholder="e.g. 15" />
+                        <label for="f_duration"><span>Expected duration <span class="required_marker" aria-hidden="true">*</span></span><span class="hint">minutes</span></label>
+                        <input id="f_duration" name="duration" type="number" min="1" step="1" value="${esc(f.duration)}" placeholder="e.g. 15" required />
                         <div class="field_error" hidden></div>
                     </div>
                     <div class="field" data-field="priority">

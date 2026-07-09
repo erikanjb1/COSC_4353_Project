@@ -640,6 +640,11 @@ button{
     color: rgb(156, 163, 175);
 }
 
+.required_marker{
+    color: rgb(220, 38, 38);
+    font-weight: 700;
+}
+
 .field input, .field textarea, .field select{
     width: 100%;
     padding: 8px 11px;
