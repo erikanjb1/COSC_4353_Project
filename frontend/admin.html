@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="admin_styles.css"> 
+    <title>QueueSmart</title>
+</head>
+<body>
+    <div class="site_layout">
+        <!-- The sidebar that contains the dashboard, service, and queue-->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar_header">
+                <div class="sidebar_logo">
+                    <div class="logo_symbol">Q</div>
+                    <span class="logo_text">Queue<strong>Smart</strong></span>
+                </div>
+            </div>
+
+            <div class="sidebar_section_label">Overview</div>
+            <nav class="sidebar_nav">
+                <a class="nav_item" data-view="dashboard" href="#">
+                    Dashboard
+                </a>
+                <a class="nav_item" data-view="services" href="#">
+                    Services
+                </a>
+                <a class="nav_item" data-view="queue" href="#">
+                    Queue Management
+                </a>
+            </nav>
+
+            <div class="sidebar_footer">
+                <div class="sidebar_profile">
+                    <div class="profile_info">
+                        <div class="profile_name">Admin</div> <!-- Change to admin's actually name later-->
+                        <div class="profile_role">Administrator</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!--The main area where info will show-->
+        <div class="main">
+            <header class="topbar">
+                <nav class="breadcrumb">
+                    <span class="breadcrumb_root">QueueSmart</span>
+                    <span class="breadcrumb_sep">></span>
+                    <span class="breadcrumb_current" id="breadcrumb_page">Dashboard</span>
+                </nav>
+                <div class="topbar_right">
+                    <div class="topbar_badge">
+                        <span class="badge_dot"></span>
+                        <span id="topbar_badge_text">Loading...</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="page_content" id="app"></main>
+            <!--this is the footer-->
+            <footer class="site_footer">
+                <span>QueueSmart Admin console</span>
+            </footer>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+    <script src="admin_script.js"></script>
+</body>
+</html>
