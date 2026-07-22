@@ -3,6 +3,7 @@ const express = require("express");
 
 const queueRoutes = require("./routes/queueRoutes");
 const serviceManagementRoutes = require("./routes/serviceManagementRoutes");
+const authRoutes = require( "./routes/authRoutes");
 const HttpError = require("./utils/httpError");
 
 const app = express();
@@ -32,6 +33,9 @@ app.use("/api/queues", queueRoutes);
 
 // Backend Service Management APIs
 app.use("/api/queues", serviceManagementRoutes);
+
+// Backend User Aunthetication Management APIs
+app.use("/api/auth", authRoutes);
 
 // Invalid API routes
 app.use("/api", function (_req, _res, next) {
