@@ -508,7 +508,8 @@ button{
 .service_card_footer{
     display: flex;
     align-items: center;
-    justify-self: space-between;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 10px;
     padding: 11px 16px;
     background: rgb(243, 245, 248);
@@ -518,6 +519,8 @@ button{
 .service_card_footer .btn_row{
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .status_pill{
@@ -701,7 +704,7 @@ button{
 
 .svc_table_header{
     display: grid;
-    grid-template-columns: 1fr 80px 80px 130px;
+    grid-template-columns: 1fr 80px 80px 240px;
     padding: 10px 16px;
     background: rgb(243, 245, 248);
     border-bottom: 1px solid rgb(299, 231, 235);
@@ -714,7 +717,7 @@ button{
 
 .svc_row{
     display: grid;
-    grid-template-columns: 1fr 80px 80px 130px;
+    grid-template-columns: 1fr 80px 80px 240px;
     padding: 13px 16px;
     border-bottom: 1px solid rgb(229, 231, 235);
     align-items: center;
@@ -744,6 +747,8 @@ button{
 .svc_row_actions{
     display: flex;
     gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 /*queue stuff*/
@@ -853,7 +858,7 @@ button{
 
 .queue_list_header{
     display: grid;
-    grid-template-columns: 48px 70px 1fr 80px 90px;
+    grid-template-columns: 48px 70px 1fr 80px 90px 100px;
     padding: 9px 14px;
     background: rgb(243, 245, 248);
     border: 1px solid rgb(229, 231, 235);
@@ -875,7 +880,7 @@ button{
 
 .queue_row{
     display: grid;
-    grid-template-columns: 48px 70px 1fr 80px 90px;
+    grid-template-columns: 48px 70px 1fr 80px 90px 100px;
     padding: 12px 14px;
     align-items: center;
     border-bottom: 1px solid rgb(229, 231, 235);
