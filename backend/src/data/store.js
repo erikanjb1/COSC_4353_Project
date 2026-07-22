@@ -40,11 +40,13 @@ const services = [
   const queueEntries = [];
   const notifications = [];
   const history = [];
+  const users = [];
   
   function resetStore() {
     queueEntries.length = 0;
     notifications.length = 0;
     history.length = 0;
+    users.length = 0;
   }
   
   module.exports = {
@@ -52,5 +54,6 @@ const services = [
     queueEntries,
     notifications,
     history,
+    users,
     resetStore
   };
