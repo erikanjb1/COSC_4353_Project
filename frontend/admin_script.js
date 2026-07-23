@@ -728,7 +728,7 @@ function renderDashboard() {
 
             <div class="meta_item">
               <span class="meta_label">Est. wait</span>
-              <span class="meta_val">${service.queueLength * service.expectedDuration}m</span>
+              <span class="meta_val">${service.estimatedWaitMinutes ?? service.queueLength * service.expectedDuration}m</span>
             </div>
 
             <div class="meta_item">
@@ -1201,7 +1201,7 @@ function renderQueue() {
           </div>
 
           <div class="q_wait">
-            ~${index * service.expectedDuration}m
+            ~${entry.estimatedWaitMinutes ?? index * service.expectedDuration}m
           </div>
 
           <div class="q_joined">
@@ -1369,7 +1369,7 @@ function renderQueue() {
 
           <div class="info_row">
             <span class="info_row_label">Total est. wait</span>
-            <span class="info_row_val">${backendQueue.length * service.expectedDuration}m</span>
+            <span class="info_row_val">${service.estimatedWaitMinutes ?? backendQueue.length * service.expectedDuration}m</span>
           </div>
         </div>
       </div>
@@ -1415,8 +1415,11 @@ function openCount() {
 function longestWait() {
   return state.services.reduce(function (maximum, service) {
     const wait =
-      Number(service.queueLength || 0) *
-      Number(service.expectedDuration || 0);
+      Number(
+        service.estimatedWaitMinutes ??
+          Number(service.queueLength || 0) *
+            Number(service.expectedDuration || 0)
+      );
 
     return Math.max(maximum, wait);
   }, 0);

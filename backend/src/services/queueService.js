@@ -17,6 +17,14 @@ const PRIORITY_WEIGHT = Object.freeze({
   high: 3
 });
 
+function calculateEstimatedWaitMinutes(
+  position,
+  expectedDuration
+) {
+  return Math.max(position, 0) *
+    expectedDuration;
+}
+
 function validateJoinInput(input) {
   const errors = [];
 
@@ -177,10 +185,15 @@ function estimateWait(
     );
   }
 
+  const position = index + 1;
+
   return {
-    position: index + 1,
+    position: position,
     estimatedWaitMinutes:
-      index * service.expectedDuration
+      calculateEstimatedWaitMinutes(
+        position,
+        service.expectedDuration
+      )
   };
 }
 
@@ -352,12 +365,16 @@ function viewQueue(serviceId) {
   const queue =
     activeQueueForService(serviceId).map(
       function (entry, index) {
+        const position = index + 1;
+
         return {
           ...entry,
-          position: index + 1,
+          position: position,
           estimatedWaitMinutes:
-            index *
-            service.expectedDuration
+            calculateEstimatedWaitMinutes(
+              position,
+              service.expectedDuration
+            )
         };
       }
     );
@@ -460,12 +477,19 @@ function getUserStatus({
 function listServices() {
   return services.map(
     function (service) {
+      const queueLength =
+        activeQueueForService(
+          service.id
+        ).length;
+
       return {
         ...service,
-        queueLength:
-          activeQueueForService(
-            service.id
-          ).length
+        queueLength: queueLength,
+        estimatedWaitMinutes:
+          calculateEstimatedWaitMinutes(
+            queueLength + 1,
+            service.expectedDuration
+          )
       };
     }
   );
@@ -489,6 +513,7 @@ function getUserHistory(userId) {
 
 module.exports = {
   PRIORITY_WEIGHT,
+  calculateEstimatedWaitMinutes,
   validateJoinInput,
   sortQueue,
   joinQueue,

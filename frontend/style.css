@@ -282,6 +282,7 @@ select:focus {
   color: #065f46;
   font-weight: 700;
   font-size: 18px;
+  font-variant-numeric: tabular-nums;
 }
 
 .wait-box small {

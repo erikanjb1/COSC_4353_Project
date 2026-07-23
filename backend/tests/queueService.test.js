@@ -11,6 +11,7 @@ const {
 } = require("../src/data/store");
 
 const {
+  calculateEstimatedWaitMinutes,
   validateJoinInput,
   sortQueue,
   joinQueue,
@@ -42,6 +43,27 @@ function join(
 test.beforeEach(function () {
   resetStore();
 });
+
+test(
+  "calculates estimated wait from queue position and service duration",
+  function () {
+    assert.equal(
+      calculateEstimatedWaitMinutes(
+        1,
+        20
+      ),
+      20
+    );
+
+    assert.equal(
+      calculateEstimatedWaitMinutes(
+        4,
+        20
+      ),
+      80
+    );
+  }
+);
 
 test(
   "validates required fields and field limits",
@@ -81,7 +103,7 @@ test(
 
     assert.equal(
       result.estimatedWaitMinutes,
-      0
+      20
     );
 
     assert.equal(
@@ -183,7 +205,7 @@ test(
 
     assert.equal(
       second.estimatedWaitMinutes,
-      20
+      40
     );
 
     const status =
@@ -258,7 +280,7 @@ test(
     assert.equal(
       result.queue[1]
         .estimatedWaitMinutes,
-      20
+      40
     );
   }
 );
@@ -322,6 +344,11 @@ test(
     assert.equal(
       service.queueLength,
       1
+    );
+
+    assert.equal(
+      service.estimatedWaitMinutes,
+      40
     );
   }
 );

@@ -10,6 +10,14 @@ let services = [];
 let currentQueue = null;
 let historyData = [];
 let notifications = [];
+let waitCountdownIntervalId = null;
+let queueStatusRefreshInProgress = false;
+
+const ACTIVE_QUEUE_SERVICE_KEY =
+  "activeQueueServiceId";
+
+const ACTIVE_QUEUE_COUNTDOWN_KEY =
+  "activeQueueCountdownEndsAt";
 
 // this Starts the application
 document.addEventListener(
@@ -41,6 +49,29 @@ document.addEventListener(
       );
     }
 
+    window.setInterval(
+      async function () {
+        if (
+          !currentQueue ||
+          queueStatusRefreshInProgress
+        ) {
+          return;
+        }
+
+        queueStatusRefreshInProgress = true;
+
+        try {
+          await refreshQueueStatus(
+            false,
+            true
+          );
+        } finally {
+          queueStatusRefreshInProgress = false;
+        }
+      },
+      5000
+    );
+
     await initializeApplication();
   }
 );
@@ -51,7 +82,7 @@ async function initializeApplication() {
 
     const savedServiceId =
       localStorage.getItem(
-        "activeQueueServiceId"
+        ACTIVE_QUEUE_SERVICE_KEY
       );
 
     if (savedServiceId) {
@@ -136,6 +167,99 @@ async function apiRequest(
   }
 
   return result.data;
+}
+
+function startWaitCountdown(resetTimer = false) {
+  stopWaitCountdown();
+
+  if (
+    !currentQueue ||
+    typeof currentQueue.waitTime !== "number"
+  ) {
+    return;
+  }
+
+  const backendEstimateEndsAt =
+    Date.now() +
+    Math.max(currentQueue.waitTime, 0) *
+      60 *
+      1000;
+
+  const savedEndsAt = resetTimer
+    ? NaN
+    : Number(
+        localStorage.getItem(
+          ACTIVE_QUEUE_COUNTDOWN_KEY
+        )
+      );
+
+  currentQueue.countdownEndsAt =
+    Number.isFinite(savedEndsAt)
+      ? savedEndsAt
+      : backendEstimateEndsAt;
+
+  localStorage.setItem(
+    ACTIVE_QUEUE_COUNTDOWN_KEY,
+    String(currentQueue.countdownEndsAt)
+  );
+
+  waitCountdownIntervalId =
+    window.setInterval(
+      function () {
+        updateQueueStatus();
+        updateDashboard();
+
+        if (getRemainingWaitSeconds() === 0) {
+          stopWaitCountdown();
+        }
+      },
+      1000
+    );
+}
+
+function stopWaitCountdown() {
+  if (waitCountdownIntervalId) {
+    window.clearInterval(
+      waitCountdownIntervalId
+    );
+
+    waitCountdownIntervalId = null;
+  }
+}
+
+function getRemainingWaitSeconds() {
+  if (
+    !currentQueue ||
+    typeof currentQueue.countdownEndsAt !== "number"
+  ) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.ceil(
+      (currentQueue.countdownEndsAt -
+        Date.now()) /
+        1000
+    )
+  );
+}
+
+function formatTicketTimer(totalSeconds) {
+  const safeSeconds =
+    Math.max(0, Number(totalSeconds) || 0);
+
+  const minutes = Math.floor(
+    safeSeconds / 60
+  );
+
+  const seconds = safeSeconds % 60;
+
+  return (
+    String(minutes).padStart(2, "0") +
+    ":" +
+    String(seconds).padStart(2, "0")
+  );
 }
 
 // Navigation
@@ -242,8 +366,9 @@ function renderServices() {
       "service-card";
 
     const estimatedWait =
+      service.estimatedWaitMinutes ??
       service.queueLength *
-      service.expectedDuration;
+        service.expectedDuration;
 
     serviceCard.innerHTML = `
       <h4>${service.name}</h4>
@@ -252,7 +377,9 @@ function renderServices() {
         ${service.queueLength} people waiting
       </span>
       <span>
-        ${estimatedWait} min estimated wait
+        ${formatTicketTimer(
+          estimatedWait * 60
+        )} estimated wait
       </span>
     `;
 
@@ -328,13 +455,18 @@ function setupServiceSelection() {
 
       if (selectedService) {
         const estimatedWait =
+          selectedService
+            .estimatedWaitMinutes ??
           selectedService.queueLength *
-          selectedService.expectedDuration;
+            selectedService
+              .expectedDuration;
 
         document.getElementById(
           "estimatedWaitTime"
         ).textContent =
-          estimatedWait + " minutes";
+          formatTicketTimer(
+            estimatedWait * 60
+          );
 
         document.getElementById(
           "queueLengthText"
@@ -443,8 +575,10 @@ function setupJoinQueueForm() {
               : "Waiting"
         };
 
+        startWaitCountdown(true);
+
         localStorage.setItem(
-          "activeQueueServiceId",
+          ACTIVE_QUEUE_SERVICE_KEY,
           result.entry.serviceId
         );
 
@@ -525,9 +659,13 @@ async function leaveQueue() {
     );
 
     currentQueue = null;
+    stopWaitCountdown();
+    localStorage.removeItem(
+      ACTIVE_QUEUE_COUNTDOWN_KEY
+    );
 
     localStorage.removeItem(
-      "activeQueueServiceId"
+      ACTIVE_QUEUE_SERVICE_KEY
     );
 
     await refreshBackendData();
@@ -550,7 +688,8 @@ async function leaveQueue() {
 
 // Refresh Queue Status
 async function refreshQueueStatus(
-  showMessage
+  showMessage,
+  notifyWhenInactive = false
 ) {
   if (!currentQueue) {
     if (showMessage) {
@@ -590,8 +729,10 @@ async function refreshQueueStatus(
         result.displayStatus
     };
 
+    startWaitCountdown();
+
     localStorage.setItem(
-      "activeQueueServiceId",
+      ACTIVE_QUEUE_SERVICE_KEY,
       currentQueue.serviceId
     );
 
@@ -610,18 +751,35 @@ async function refreshQueueStatus(
     // the administrator may have served the user.
     if (error.status === 404) {
       currentQueue = null;
+      stopWaitCountdown();
+      localStorage.removeItem(
+        ACTIVE_QUEUE_COUNTDOWN_KEY
+      );
 
       localStorage.removeItem(
-        "activeQueueServiceId"
+        ACTIVE_QUEUE_SERVICE_KEY
       );
 
       await refreshBackendData();
 
       updateAllScreens();
 
-      if (showMessage) {
+      if (
+        showMessage ||
+        notifyWhenInactive
+      ) {
+        const servedNotification =
+          notifications.find(
+            function (notification) {
+              return (
+                notification.type === "SERVED"
+              );
+            }
+          );
+
         displayMessage(
-          "You no longer have an active queue. Check your history and notifications.",
+          servedNotification?.message ||
+            "You no longer have an active queue. Check your history and notifications.",
           "info"
         );
       }
@@ -679,14 +837,19 @@ function updateDashboard() {
     dashboardQueueStatus.textContent =
       "You are not currently in a queue.";
   } else {
+    const waitTimer =
+      formatTicketTimer(
+        getRemainingWaitSeconds()
+      );
+
     dashboardQueueStatus.textContent =
       "You are in the " +
       currentQueue.serviceName +
       " queue. Position: " +
       currentQueue.position +
       ". Estimated wait time: " +
-      currentQueue.waitTime +
-      " minutes. Status: " +
+      waitTimer +
+      ". Status: " +
       currentQueue.status +
       ".";
   }
@@ -759,8 +922,13 @@ function updateQueueStatus() {
   currentPosition.textContent =
     currentQueue.position;
 
+  const remainingWaitSeconds =
+    getRemainingWaitSeconds();
+
   statusWaitTime.textContent =
-    currentQueue.waitTime + " min";
+    formatTicketTimer(
+      remainingWaitSeconds
+    );
 
   queueStatusText.textContent =
     currentQueue.status;
@@ -801,7 +969,8 @@ function updateQueueStatus() {
 
   progressMessage.textContent =
     "Current status: " +
-    currentQueue.status;
+    currentQueue.status +
+    ".";
 }
 
 // History table
