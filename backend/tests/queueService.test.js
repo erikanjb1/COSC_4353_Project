@@ -111,6 +111,11 @@ test(
       1
     );
 
+    assert.equal(
+      history[0].outcome,
+      "Joined Queue"
+    );
+
     assert.ok(
       notifications.some(
         function (item) {
@@ -382,14 +387,14 @@ test(
       getUserHistory(
         "user-1"
       ).length,
-      1
+      2
     );
 
     assert.equal(
       getUserHistory(
         "user-2"
       ).length,
-      0
+      1
     );
   }
 );

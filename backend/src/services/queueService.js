@@ -286,6 +286,17 @@ function joinQueue({
 
   queueEntries.push(entry);
 
+  history.unshift({
+    id: crypto.randomUUID(),
+    queueEntryId: entry.id,
+    userId: entry.userId,
+    serviceId: entry.serviceId,
+    serviceName: service.name,
+    joinedAt: entry.joinedAt,
+    completedAt: entry.joinedAt,
+    outcome: "Joined Queue"
+  });
+
   const notification = addNotification(
     userId,
     "QUEUE_JOINED",
