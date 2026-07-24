@@ -1,98 +1,175 @@
-const form = document.querySelector('form')
-const username_input = document.getElementById('username-input')
-const password_input = document.getElementById('password-input')
-const confirm_password_input = document.getElementById('repeat-password-input') 
-const error_message = document.getElementById('error-message')
-const isRegisterPage = !!confirm_password_input
+const API_BASE_URL = "/api/auth";
 
-form.addEventListener('submit', (e) => {
-    e.preventDefault()
+const form = document.querySelector("form");
+const emailInput = document.getElementById("username-input");
+const passwordInput = document.getElementById("password-input");
+const confirmPasswordInput = document.getElementById("repeat-password-input");
+const errorMessage = document.getElementById("error-message");
 
-    let errors = isRegisterPage
-        ? getRegisterFormErrors(username_input.value, password_input.value, confirm_password_input.value)
-        : getLoginFormErrors(username_input.value, password_input.value)
+const isRegisterPage = Boolean(confirmPasswordInput);
+
+form.addEventListener('submit',async function (event) {
+    event.preventDefault();
+
+    errorMessage.innerText = "";
+    
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    const errors = isRegisterPage
+        ? validateRegisterForm(
+            email,
+            password,
+            confirmPasswordInput.value
+        )
+        : validateLoginForm(email, password);
 
     if (errors.length > 0) {
-        error_message.innerText = errors.join(". ")
-    } else {
-        error_message.innerText = ''
-        // mock success
+        errorMessage.innerText = errors.join(". ");
+        return;
+    }
+
+    try {
         if (isRegisterPage) {
-            alert('Registration successful! Redirecting to login...')
-            window.location.href = 'login.html'
+        await registerUser(email, password);
         } else {
-            alert('Login successful!')
+        await loginUser(email, password);
         }
+    } catch (error) {
+        errorMessage.innerText =
+        error.message || "Something went wrong.";
     }
-})
+});
 
-function getLoginFormErrors(username, password) {
-    let errors = []
-    if (username.trim() === '') {
-        errors.push("Username is required")
-        username_input.parentElement.classList.add('incorrect')
-    } else {
-        username_input.parentElement.classList.remove('incorrect')
+async function registerUser(email, password) {
+    const response = await fetch(
+        `${API_BASE_URL}/register`,
+        {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email,
+            password
+        })
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        throw new Error(getErrorMessage(result));
     }
 
-    if (password === '') {
-        errors.push("Password is required")
-        password_input.parentElement.classList.add('incorrect')
-    } else if (password.length < 8) {
-        errors.push("Password must be at least 8 characters")
-        password_input.parentElement.classList.add('incorrect')
-    } else {
-        password_input.parentElement.classList.remove('incorrect')
-    }
-    return errors
+    alert("Registration successful. Please log in.");
+
+    window.location.href = "/login";
 }
 
-function getRegisterFormErrors(email, password, repeatPassword) {
-    let errors = []
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+async function loginUser(email, password) {
+    const response = await fetch(
+        `${API_BASE_URL}/login`,
+        {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email,
+            password
+        })
+        }
+    );
 
-    if (email == null) {
-        errors.push("Email is required")
-        username_input.parentElement.classList.add('incorrect')
-    } else if (!emailRegex.test(email)) {
-        errors.push("Please enter a valid email")
-        username_input.parentElement.classList.add('incorrect')
+    const result = await response.json();
+
+    if (!response.ok) {
+        throw new Error(getErrorMessage(result));
+    }
+
+    const user = result.data.user;
+    const token = result.data.token;
+
+    localStorage.setItem(
+        "currentUser",
+        JSON.stringify(user)
+    );
+
+    localStorage.setItem("authToken", token);
+
+    if (user.role === "administrator") {
+        window.location.href = "/admin";
     } else {
-        username_input.parentElement.classList.remove('incorrect')
+        window.location.href = "/";
     }
-
-    if (password == null) {
-        errors.push("Password is required")
-        password_input.parentElement.classList.add('incorrect')
-    } else if (password.length < 8) {
-        errors.push("Password must be at least 8 characters")
-        password_input.parentElement.classList.add('incorrect')
-    } else {
-        password_input.parentElement.classList.remove('incorrect')
-    }
-
-    if (repeatPassword === '') {
-        errors.push("Please confirm your password")
-        confirm_password_input.parentElement.classList.add('incorrect')
-    }
-    else if (repeatPassword !== password) {
-        errors.push("Passwords do not match")
-        confirm_password_input.parentElement.classList.add('incorrect')
-    }
-    else {
-        confirm_password_input.parentElement.classList.remove('incorrect')
-    }
-
-    return errors
 }
 
-const allInputs = [username_input, password_input, confirm_password_input].filter(Boolean)
+function validateLoginForm(email, password) {
+    const errors = [];
 
-allInputs.forEach(input => {
-    input.addEventListener('input', () => {
-        if (input.parentElement.classList.contains('incorrect')) {
-            input.parentElement.classList.remove('incorrect')
-            error_message.innerText = ''
-        }
-    })
-})
+    if (email === "") {
+        errors.push("Email is required");
+    }
+
+    if (password === "") {
+        errors.push("Password is required");
+    }
+
+    return errors;
+}
+
+function validateRegisterForm(
+    email,
+    password,
+    confirmPassword
+    ) {
+    const errors = [];
+    const emailPattern =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (email === "") {
+        errors.push("Email is required");
+    } else if (!emailPattern.test(email)) {
+        errors.push("Enter a valid email");
+    } else if (email.length > 100) {
+        errors.push(
+        "Email must not exceed 100 characters"
+        );
+    }
+
+    if (password === "") {
+        errors.push("Password is required");
+    } else if (password.length < 8) {
+        errors.push(
+        "Password must be at least 8 characters"
+        );
+    } else if (password.length > 64) {
+        errors.push(
+        "Password must not exceed 64 characters"
+        );
+    }
+
+    if (confirmPassword === "") {
+        errors.push("Please confirm your password");
+    } else if (password !== confirmPassword) {
+        errors.push("Passwords do not match");
+    }
+
+    return errors;
+}
+
+function getErrorMessage(result) {
+    if (
+        Array.isArray(result.error?.details) &&
+        result.error.details.length > 0
+    ) {
+        return result.error.details.join(". ");
+    }
+
+    return (
+        result.error?.message ||
+        result.message ||
+        "The request could not be completed."
+    );
+}

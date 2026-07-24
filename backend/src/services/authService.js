@@ -10,7 +10,7 @@ const HttpError = require(
 
 function validateRegistrationInput(input) {
   const errors = [];
-
+  //invalid input validation
   if (
     !input ||
     typeof input !== "object" ||
@@ -18,7 +18,7 @@ function validateRegistrationInput(input) {
   ) {
     throw new HttpError(
       400,
-      "Request body must be a JSON object."
+      "Invalid Request Form."
     );
   }
 
@@ -27,7 +27,7 @@ function validateRegistrationInput(input) {
     input.email.trim() === ""
   ) {
     errors.push(
-      "Email is required and must be a string."
+      "Email is required."
     );
   } else if (
     input.email.trim().length > 100
@@ -51,14 +51,14 @@ function validateRegistrationInput(input) {
     input.password === ""
   ) {
     errors.push(
-      "Password is required and must be a string."
+      "Password is required."
     );
   } else if (
     input.password.length < 8 ||
-    input.password.length > 64
+    input.password.length > 30
   ) {
     errors.push(
-      "Password must contain between 8 and 64 characters."
+      "Password must contain between 8 and 30 characters."
     );
   }
 
@@ -92,7 +92,7 @@ function validateLoginInput(input) {
   ) {
     throw new HttpError(
       400,
-      "Request body must be a JSON object."
+      "Invalid Request Form."
     );
   }
 
@@ -149,8 +149,8 @@ function registerUser({
   const newUser = {
     id: crypto.randomUUID(),
     email: normalizedEmail,
-    password: password,
-    role: role ?? "user",
+    password,
+    role: "user",
     createdAt: new Date().toISOString()
   };
 

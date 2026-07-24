@@ -40,7 +40,16 @@ const services = [
   const queueEntries = [];
   const notifications = [];
   const history = [];
-  const users = [];
+  //hard-coded admin account
+  const users = 
+  [{
+      id: "admin-1",
+      email: "admin@queuesmart.com",
+      password: "Admin123!",
+      role: "administrator",
+      createdAt: new Date().toISOString()
+    }
+  ];
   
   function resetStore() {
     queueEntries.length = 0;
