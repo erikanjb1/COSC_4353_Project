@@ -150,7 +150,7 @@ function registerUser({
     id: crypto.randomUUID(),
     email: normalizedEmail,
     password,
-    role: "user",
+    role: role || "user",
     createdAt: new Date().toISOString()
   };
 

@@ -42,6 +42,19 @@ test(
   }
 );
 
+test("rejects login with missing email",
+  function () {
+    assert.throws(
+      function () {
+        loginUser({ 
+          password: "Password123" 
+        });
+  }, 
+  function (error) { 
+    return error.status === 400; 
+  });
+});
+
 test(
   "rejects duplicate emails",
   function () {
@@ -108,5 +121,94 @@ test(
         return error.status === 401;
       }
     );
+  }
+);
+
+test("rejects login with missing password", 
+  function () {
+    assert.throws(
+      function () {
+        loginUser({ 
+          email: "a@b.com" 
+        });
+      }, 
+      function (error) { 
+        return error.status === 400; 
+      }
+    );
+  }
+);
+
+test("rejects password shorter than 8 characters", 
+  function () {
+    assert.throws(
+      function () {
+        registerUser({ 
+          email: "a@b.com", 
+          password: "short" 
+        });
+      }, 
+      function (error) { 
+        return error.status === 400; 
+      }
+    );
+  }
+);
+
+test("rejects password longer than 30 characters",
+  function () {
+    assert.throws(function () {
+      registerUser({ 
+        email: "a@b.com", 
+        password: "P".repeat(31) 
+      });
+    }, 
+    function (error) { 
+      return error.status === 400; 
+    });
+  }
+);
+
+test("rejects registration with missing email", 
+  function () {
+    assert.throws(
+      function () {
+        registerUser({ 
+          password: "Password123" 
+        });
+      },
+      function (error) {
+        return error.status === 400;
+      }
+    );
+  }
+);
+
+test("rejects registration with invalid email format", 
+  function () {
+    assert.throws(
+      function () {
+        registerUser({ 
+          email: "not-an-email", 
+          password: "Password123" 
+        });
+      }, 
+      function (error) { 
+        return error.status === 400; 
+      }
+    );
+  }
+);
+
+test("rejects login with missing email", 
+  function () {
+    assert.throws(function () {
+      loginUser({ 
+        password: "Password123" 
+      });
+    }, 
+    function (error) { 
+      return error.status === 400;
+    });
   }
 );
