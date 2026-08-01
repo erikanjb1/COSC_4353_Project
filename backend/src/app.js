@@ -5,6 +5,7 @@ const queueRoutes = require("./routes/queueRoutes");
 const serviceManagementRoutes = require("./routes/serviceManagementRoutes");
 const authRoutes = require( "./routes/authRoutes");
 const HttpError = require("./utils/httpError");
+const { checkConnection } = require("./data/db");
 
 const app = express();
 
@@ -21,10 +22,13 @@ app.use(
 );
 
 // Backend health check
-app.get("/api/health", function (_req, res) {
+app.get("/api/health", async function (_req, res) {
+  const databaseConnected = await checkConnection();
   res.status(200).json({
     success: true,
-    message: "QueueSmart API is running."
+    message: "QueueSmart API is running.",
+    // checks to see if database connects
+    database: databaseConnected ? "connected" : "unavailable"
   });
 });
 
