@@ -29,10 +29,10 @@ CREATE TABLE IF NOT EXISTS Service(
 
 CREATE TABLE IF NOT EXISTS Queue(
     Queue_ID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-    Service_ID INT NOT NULL,
+    Service_ID INT NULL,
     Status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
     Created_Date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_Queue_Service FOREIGN KEY (Service_ID) REFERENCES Service (Service_ID)
+    CONSTRAINT fk_Queue_Service FOREIGN KEY (Service_ID) REFERENCES Service (Service_ID) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS QueueEntry(
@@ -57,4 +57,18 @@ CREATE TABLE IF NOT EXISTS Notification(
     TimeCode TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status VARCHAR(30),
     CONSTRAINT fk_Notification_UserCredentials FOREIGN KEY (User_ID) REFERENCES UserCredentials (User_ID)
+);
+
+CREATE TABLE IF NOT EXISTS History(
+    History_ID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+    QueueEntry_ID INT NOT NULL,
+    User_ID INT NOT NULL,
+    Service_ID INT NULL,
+    Service_Name VARCHAR(100) NOT NULL,
+    Joined_At DATETIME NOT NULL,
+    Completed_At DATETIME NOT NULL,
+    Outcome ENUM('served', 'left') NOT NULL,
+    CONSTRAINT fk_History_QueueEntry FOREIGN KEY (QueueEntry_ID) REFERENCES QueueEntry (QueueEntry_ID),
+    CONSTRAINT fk_History_User FOREIGN KEY (User_ID) REFERENCES UserCredentials (User_ID),
+    CONSTRAINT fk_History_Service FOREIGN KEY (Service_ID) REFERENCES Service (Service_ID) ON DELETE SET NULL
 );
