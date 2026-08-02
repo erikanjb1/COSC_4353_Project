@@ -2,8 +2,12 @@ const path = require("node:path");
 const express = require("express");
 
 const queueRoutes = require("./routes/queueRoutes");
+
+// NEW: Active Queue database routes
+const activeQueueRoutes = require("./routes/activeQueueRoutes");
+
 const serviceManagementRoutes = require("./routes/serviceManagementRoutes");
-const authRoutes = require( "./routes/authRoutes");
+const authRoutes = require("./routes/authRoutes");
 const HttpError = require("./utils/httpError");
 const { checkConnection } = require("./data/db");
 
@@ -24,21 +28,28 @@ app.use(
 // Backend health check
 app.get("/api/health", async function (_req, res) {
   const databaseConnected = await checkConnection();
+
   res.status(200).json({
     success: true,
     message: "QueueSmart API is running.",
-    // checks to see if database connects
-    database: databaseConnected ? "connected" : "unavailable"
+
+    // Checks whether the database connects
+    database: databaseConnected
+      ? "connected"
+      : "unavailable"
   });
 });
 
-// Backend Queue Management APIs
+// Existing Queue Management APIs
 app.use("/api/queues", queueRoutes);
+
+// new: Active Queue database APIs
+app.use("/api/active-queues", activeQueueRoutes);
 
 // Backend Service Management APIs
 app.use("/api/queues", serviceManagementRoutes);
 
-// Backend User Aunthetication Management APIs
+// Backend User Authentication Management APIs
 app.use("/api/auth", authRoutes);
 
 // Invalid API routes
@@ -51,7 +62,7 @@ app.use("/api", function (_req, _res, next) {
   );
 });
 
-// Clean front-end page routes
+// Clean frontend page routes
 app.get("/", function (_req, res) {
   res.sendFile(
     path.join(frontendPath, "index.html")
@@ -75,7 +86,6 @@ app.get("/register", function (_req, res) {
     path.join(frontendPath, "register.html")
   );
 });
-
 
 app.use(express.static(frontendPath));
 

@@ -4,10 +4,20 @@ const CURRENT_ADMIN = {
   role: "administrator"
 };
 
+// i added these just for the Temporary authentication for the Active Queue API during for the local testing.
+if (!localStorage.getItem("userId")) {
+  localStorage.setItem("userId", "1");
+}
+
+if (!localStorage.getItem("role")) {
+  localStorage.setItem("role", "administrator");
+}
+
 const state = {
   view: "dashboard",
   selectedServiceId: null,
   services: [],
+  activeQueues: [],
   queues: {},
   nowServing: {},
   busy: false,
@@ -21,7 +31,7 @@ const state = {
 
 let $app = null;
 
-// Start the administrator application.
+
 document.addEventListener("DOMContentLoaded", async function () {
   $app = document.getElementById("app");
 
@@ -29,7 +39,10 @@ document.addEventListener("DOMContentLoaded", async function () {
   setupActionHandlers();
 
   try {
-    await loadServices();
+    await Promise.all([
+      loadServices(),
+      loadActiveQueues()
+    ]);
 
     if (state.services.length > 0) {
       state.selectedServiceId = state.services[0].id;
@@ -108,6 +121,19 @@ async function loadServices() {
   if (!state.selectedServiceId && state.services.length > 0) {
     state.selectedServiceId = state.services[0].id;
   }
+}
+
+// Retrieve the real Queue table records from MySQL.
+async function loadActiveQueues() {
+  if (
+    !window.QueueApi ||
+    typeof window.QueueApi.getActiveQueues !== "function"
+  ) {
+    throw new Error("queueApi.js was not loaded correctly.");
+  }
+
+  const result = await window.QueueApi.getActiveQueues();
+  state.activeQueues = Array.isArray(result) ? result : [];
 }
 
 // create a new service.
@@ -481,12 +507,52 @@ async function refreshSelectedQueue(showMessage = true) {
   try {
     await Promise.all([
       loadServices(),
+      loadActiveQueues(),
       loadQueue(state.selectedServiceId)
     ]);
 
     if (showMessage) {
       showNotification("Queue refreshed.", "info");
     }
+  } catch (error) {
+    handleError(error);
+  } finally {
+    state.busy = false;
+    updateTopbar();
+    render();
+  }
+}
+
+// Open or close a real MySQL Queue record.
+async function toggleActiveQueueStatus(queueId, currentStatus) {
+  if (state.busy) {
+    return;
+  }
+
+  const parsedQueueId = Number(queueId);
+
+  if (!Number.isInteger(parsedQueueId) || parsedQueueId <= 0) {
+    showNotification("A valid Queue ID is required.", "error");
+    return;
+  }
+
+  const nextStatus = currentStatus === "open" ? "closed" : "open";
+
+  state.busy = true;
+  render();
+
+  try {
+    await window.QueueApi.updateActiveQueueStatus(
+      parsedQueueId,
+      nextStatus
+    );
+
+    await loadActiveQueues();
+
+    showNotification(
+      "Queue " + parsedQueueId + " is now " + nextStatus + ".",
+      "success"
+    );
   } catch (error) {
     handleError(error);
   } finally {
@@ -519,6 +585,8 @@ function setupActionHandlers() {
     const action = actionElement.dataset.action;
     const serviceId = actionElement.dataset.id;
     const entryId = actionElement.dataset.entryId;
+    const activeQueueId = actionElement.dataset.queueId;
+    const activeQueueStatus = actionElement.dataset.queueStatus;
 
     if (action === "go_queue") {
       await setView("queue", { serviceId: serviceId });
@@ -604,6 +672,14 @@ function setupActionHandlers() {
       return;
     }
 
+    if (action === "toggle_active_queue_status") {
+      await toggleActiveQueueStatus(
+        activeQueueId,
+        activeQueueStatus
+      );
+      return;
+    }
+
     if (action === "serve_next") {
       await serveNext(state.selectedServiceId);
     }
@@ -666,7 +742,10 @@ async function setView(view, options = {}) {
   }
 
   try {
-    await loadServices();
+    await Promise.all([
+      loadServices(),
+      loadActiveQueues()
+    ]);
 
     if (view === "queue" && state.selectedServiceId) {
       await loadQueue(state.selectedServiceId);
@@ -1123,6 +1202,96 @@ function renderServices() {
   `;
 }
 
+// Render records retrieved from the MySQL Queue table.
+function renderDatabaseQueueRecords() {
+  const rows = state.activeQueues
+    .map(function (queue) {
+      const isOpen = queue.status === "open";
+      const serviceId =
+        queue.serviceId === null || queue.serviceId === undefined
+          ? "-"
+          : queue.serviceId;
+      const serviceName =
+        queue.serviceName || "Service no longer exists";
+
+      return `
+        <div class="svc_row">
+          <div>
+            <div class="svc_row_name">
+              ${escapeHtml(serviceName)}
+            </div>
+            <div class="svc_row_desc">
+              Queue ID: ${escapeHtml(queue.queueId)}
+              &middot; Service ID: ${escapeHtml(serviceId)}
+            </div>
+          </div>
+
+          <div>
+            <span
+              class="status_pill ${isOpen ? "pill_open" : "pill_closed"}"
+            >
+              <span class="dot"></span>
+              ${isOpen ? "Open" : "Closed"}
+            </span>
+          </div>
+
+          <div style="font-size: 12px; font-weight: 600">
+            ${formatDateTime(queue.createdDate)}
+          </div>
+
+          <div class="svc_row_actions">
+            <button
+              class="btn btn_sm btn_primary"
+              data-action="toggle_active_queue_status"
+              data-queue-id="${escapeHtml(queue.queueId)}"
+              data-queue-status="${escapeHtml(queue.status)}"
+              ${state.busy ? "disabled" : ""}
+            >
+              ${
+                state.busy
+                  ? "Updating..."
+                  : isOpen
+                    ? "Close Queue"
+                    : "Open Queue"
+              }
+            </button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="section_heading">
+      Database Queue Records
+    </div>
+
+    <div class="svc_table">
+      <div class="svc_table_header">
+        <div>Queue / Service</div>
+        <div>Status</div>
+        <div>Created</div>
+        <div>Action</div>
+      </div>
+
+      ${
+        rows ||
+        `
+          <div
+            class="empty_state"
+            style="border-radius: 0; border: none"
+          >
+            <div class="empty_title">No Queue records</div>
+            <div class="empty_body">
+              No records were returned from the MySQL Queue table.
+            </div>
+          </div>
+        `
+      }
+    </div>
+  `;
+}
+
 // Queue Management view uses the real administrator queue endpoint.
 function renderQueue() {
   const service = getSelectedService();
@@ -1132,7 +1301,10 @@ function renderQueue() {
       <div class="page_header">
         <h1 class="page_title">Queue Management</h1>
       </div>
-      <div class="empty_state">
+
+      ${renderDatabaseQueueRecords()}
+
+      <div class="empty_state" style="margin-top: 24px">
         <div class="empty_title">No services available</div>
         <div class="empty_body">The backend did not return any services.</div>
       </div>
@@ -1267,7 +1439,9 @@ function renderQueue() {
       </div>
     </div>
 
-    <div class="queue_page_grid">
+    ${renderDatabaseQueueRecords()}
+
+    <div class="queue_page_grid" style="margin-top: 24px">
       <div>
         <div class="queue_select_bar">
           <label for="queue_service_select">Service</label>
