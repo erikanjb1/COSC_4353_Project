@@ -1,250 +1,213 @@
-const test = require("node:test");
-const assert = require(
-  "node:assert/strict"
-);
+'use strict';
 
-const {
-  validateServiceInput,
-  createService,
-  updateService,
-  deleteService,
-  listServices
-} = require(
-  "../src/services/serviceManagementService"
-);
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const service = require('../src/services/serviceManagementService');
 
-const {
-  queueEntries
-} = require("../src/data/store");
+function sampleService(overrides = {}) {
+  return {
+    id: 1,
+    name: 'Academic Advising',
+    description: 'Plan classes and discuss degree requirements.',
+    expectedDuration: 20,
+    priorityLevel: 'normal',
+    isOpen: true,
+    ...overrides
+  };
+}
 
-test(
-  "validates required fields and field limits when creating a service",
-  function () {
-    assert.throws(
-      function () {
-        validateServiceInput({
-          name: "",
-          description: "hi",
-          expectedDuration: 0,
-          priorityLevel: "urgent",
-          isOpen: "yes"
-        });
-      },
-      function (error) {
-        return (
-          error.status === 400 &&
-          error.details.length === 5
-        );
-      }
-    );
-  }
-);
+function validPayload(overrides = {}) {
+  return {
+    name: 'Academic Advising',
+    description: 'Plan classes and discuss degree requirements.',
+    expectedDuration: 20,
+    priorityLevel: 'normal',
+    isOpen: true,
+    ...overrides
+  };
+}
 
-test(
-  "creates a new service with valid input",
-  function () {
-    const service = createService({
-      name: "Library Help Desk",
-      description:
-        "Assistance with borrowing and returning books.",
-      expectedDuration: 12,
-      priorityLevel: "normal",
-      isOpen: true
-    });
+test('validateServiceInput collects every field error at once', () => {
+  assert.throws(
+    () => {
+      service.validateServiceInput({
+        name: '',
+        description: 'hi',
+        expectedDuration: 0,
+        priorityLevel: 'urgent',
+        isOpen: 'yes'
+      });
+    },
+    (error) => error.status === 400 && error.details.length === 5
+  );
+});
 
-    assert.ok(
-      service.id.startsWith("service-")
-    );
+test('validateServiceId rejects non-positive-integer IDs', () => {
+  assert.throws(
+    () => service.validateServiceId('not-a-number'),
+    (error) => error.status === 400
+  );
 
-    assert.equal(
-      service.name,
-      "Library Help Desk"
-    );
+  assert.throws(
+    () => service.validateServiceId(-1),
+    (error) => error.status === 400
+  );
+});
 
-    assert.equal(service.isOpen, true);
+test('getService returns the mapped service for a valid ID', async () => {
+  const expected = sampleService();
+  const repository = {
+    findById: async (id) => {
+      assert.equal(id, 1);
+      return expected;
+    }
+  };
 
-    const found = listServices().find(
-      function (item) {
-        return item.id === service.id;
-      }
-    );
+  const result = await service.getService(1, repository);
+  assert.deepEqual(result, expected);
+});
 
-    assert.ok(found);
-  }
-);
+test('getService 404s when the repository finds nothing', async () => {
+  const repository = { findById: async () => null };
 
-test(
-  "rejects creating a service with a duplicate name",
-  function () {
-    createService({
-      name: "Financial Aid Office",
-      description:
-        "Help with tuition and scholarships.",
-      expectedDuration: 18,
-      priorityLevel: "high",
-      isOpen: true
-    });
+  await assert.rejects(
+    () => service.getService(99, repository),
+    (error) => error.status === 404
+  );
+});
 
-    assert.throws(
-      function () {
-        createService({
-          name: "Financial Aid Office",
-          description:
-            "Duplicate service attempt.",
-          expectedDuration: 20,
-          priorityLevel: "normal",
-          isOpen: true
-        });
-      },
-      function (error) {
-        return error.status === 409;
-      }
-    );
-  }
-);
+test('createService rejects invalid input before touching the repository', async () => {
+  const repository = {
+    findByName: async () => {
+      throw new Error('should not be called');
+    },
+    create: async () => {
+      throw new Error('should not be called');
+    }
+  };
 
-test(
-  "updates an existing service",
-  function () {
-    const created = createService({
-      name: "Parking Permits",
-      description:
-        "Issue and renew parking permits.",
-      expectedDuration: 10,
-      priorityLevel: "low",
-      isOpen: true
-    });
+  await assert.rejects(
+    () =>
+      service.createService(
+        validPayload({ name: '' }),
+        repository
+      ),
+    (error) => error.status === 400
+  );
+});
 
-    const updated = updateService(
-      created.id,
-      {
-        name: "Parking Permits",
-        description:
-          "Issue, renew, and dispute parking permits.",
-        expectedDuration: 15,
-        priorityLevel: "normal",
-        isOpen: false
-      }
-    );
+test('createService rejects a duplicate name', async () => {
+  const repository = {
+    findByName: async (name) => {
+      assert.equal(name, 'Academic Advising');
+      return sampleService();
+    }
+  };
 
-    assert.equal(
-      updated.description,
-      "Issue, renew, and dispute parking permits."
-    );
+  await assert.rejects(
+    () => service.createService(validPayload(), repository),
+    (error) => error.status === 409
+  );
+});
 
-    assert.equal(
-      updated.expectedDuration,
-      15
-    );
+test('createService trims strings and creates the service', async () => {
+  const repository = {
+    findByName: async () => null,
+    create: async (input) => {
+      assert.deepEqual(input, {
+        name: 'Academic Advising',
+        description: 'Plan classes and discuss degree requirements.',
+        expectedDuration: 20,
+        priorityLevel: 'normal',
+        isOpen: true
+      });
+      return sampleService();
+    }
+  };
 
-    assert.equal(updated.isOpen, false);
-  }
-);
+  const result = await service.createService(
+    validPayload({
+      name: '  Academic Advising  ',
+      description: '  Plan classes and discuss degree requirements.  '
+    }),
+    repository
+  );
 
-test(
-  "returns not found when updating a service that does not exist",
-  function () {
-    assert.throws(
-      function () {
-        updateService(
-          "service-does-not-exist",
-          {
-            name: "Ghost Service",
-            description: "Should not exist.",
-            expectedDuration: 5,
-            priorityLevel: "low",
-            isOpen: true
-          }
-        );
-      },
-      function (error) {
-        return error.status === 404;
-      }
-    );
-  }
-);
+  assert.deepEqual(result, sampleService());
+});
 
-test(
-  "deletes a service with no users waiting",
-  function () {
-    const service = createService({
-      name: "Mailroom Pickup",
-      description:
-        "Pick up packages and mail.",
-      expectedDuration: 5,
-      priorityLevel: "low",
-      isOpen: true
-    });
+test('updateService 404s when the service does not exist', async () => {
+  const repository = { findById: async () => null };
 
-    const deleted = deleteService(service.id);
+  await assert.rejects(
+    () => service.updateService(1, validPayload(), repository),
+    (error) => error.status === 404
+  );
+});
 
-    assert.equal(deleted.id, service.id);
+test('updateService rejects a name already used by a different service', async () => {
+  const repository = {
+    findById: async () => sampleService(),
+    findByName: async (name, excludeId) => {
+      assert.equal(excludeId, 1);
+      return sampleService({ id: 2 });
+    }
+  };
 
-    const stillExists = listServices().some(
-      function (item) {
-        return item.id === service.id;
-      }
-    );
+  await assert.rejects(
+    () => service.updateService(1, validPayload(), repository),
+    (error) => error.status === 409
+  );
+});
 
-    assert.equal(stillExists, false);
-  }
-);
+test('updateService writes the update and returns the result', async () => {
+  const updated = sampleService({ priorityLevel: 'high' });
+  const repository = {
+    findById: async () => sampleService(),
+    findByName: async () => null,
+    update: async (id, input) => {
+      assert.equal(id, 1);
+      assert.equal(input.priorityLevel, 'high');
+      return updated;
+    }
+  };
 
-test(
-  "returns not found when deleting a service that does not exist",
-  function () {
-    assert.throws(
-      function () {
-        deleteService(
-          "service-does-not-exist"
-        );
-      },
-      function (error) {
-        return error.status === 404;
-      }
-    );
-  }
-);
+  const result = await service.updateService(
+    1,
+    validPayload({ priorityLevel: 'high' }),
+    repository
+  );
 
-test(
-  "rejects deleting a service that has users waiting",
-  function () {
-    const service = createService({
-      name: "Study Room Booking",
-      description:
-        "Reserve a study room for group work.",
-      expectedDuration: 30,
-      priorityLevel: "low",
-      isOpen: true
-    });
+  assert.deepEqual(result, updated);
+});
 
-    queueEntries.push({
-      id: "test-waiting-entry",
-      userId: "user-test",
-      userName: "Test User",
-      serviceId: service.id,
-      priority: "low",
-      joinedAt: new Date().toISOString(),
-      status: "waiting",
-      servedAt: null,
-      leftAt: null
-    });
+test('deleteService 404s when the service does not exist', async () => {
+  const repository = { findById: async () => null };
 
-    assert.throws(
-      function () {
-        deleteService(service.id);
-      },
-      function (error) {
-        return error.status === 409;
-      }
-    );
+  await assert.rejects(
+    () => service.deleteService(1, repository),
+    (error) => error.status === 404
+  );
+});
 
-    const stillExists = listServices().some(
-      function (item) {
-        return item.id === service.id;
-      }
-    );
+test('deleteService removes an existing service and returns it', async () => {
+  const existing = sampleService();
+  const repository = {
+    findById: async () => existing,
+    remove: async (id) => {
+      assert.equal(id, 1);
+      return true;
+    }
+  };
 
-    assert.equal(stillExists, true);
-  }
-);
+  const result = await service.deleteService(1, repository);
+  assert.deepEqual(result, existing);
+});
+
+test('listServices returns whatever the repository provides', async () => {
+  const services = [sampleService(), sampleService({ id: 2 })];
+  const repository = { findAll: async () => services };
+
+  const result = await service.listServices(repository);
+  assert.deepEqual(result, services);
+});

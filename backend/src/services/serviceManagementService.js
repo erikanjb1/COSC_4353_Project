@@ -1,13 +1,7 @@
-const crypto = require("node:crypto");
+'use strict';
 
-const {
-  services,
-  queueEntries
-} = require("../data/store");
-
-const HttpError = require(
-  "../utils/httpError"
-);
+const HttpError = require("../utils/httpError");
+const serviceRepository = require("../data/serviceRepository");
 
 const PRIORITY_WEIGHT = Object.freeze({
   low: 1,
@@ -117,28 +111,25 @@ function validateServiceInput(input) {
   }
 }
 
-function findServiceByName(
-  name,
-  excludeServiceId
-) {
-  const normalizedName =
-    name.trim().toLowerCase();
+function validateServiceId(serviceId) {
+  const parsedId = Number(serviceId);
 
-  return services.find(function (service) {
-    return (
-      service.id !== excludeServiceId &&
-      service.name.trim().toLowerCase() ===
-        normalizedName
+  if (!Number.isInteger(parsedId) || parsedId <= 0) {
+    throw new HttpError(
+      400,
+      "Service ID must be a positive integer."
     );
-  });
+  }
+
+  return parsedId;
 }
 
-function getService(serviceId) {
-  const service = services.find(
-    function (item) {
-      return item.id === serviceId;
-    }
-  );
+async function getService(
+  serviceId,
+  repository = serviceRepository
+) {
+  const id = validateServiceId(serviceId);
+  const service = await repository.findById(id);
 
   if (!service) {
     throw new HttpError(
@@ -150,24 +141,16 @@ function getService(serviceId) {
   return service;
 }
 
-function countWaiting(serviceId) {
-  return queueEntries.filter(
-    function (entry) {
-      return (
-        entry.serviceId === serviceId &&
-        entry.status === "waiting"
-      );
-    }
-  ).length;
-}
-
-function createService({
-  name,
-  description,
-  expectedDuration,
-  priorityLevel,
-  isOpen
-}) {
+async function createService(
+  {
+    name,
+    description,
+    expectedDuration,
+    priorityLevel,
+    isOpen
+  },
+  repository = serviceRepository
+) {
   validateServiceInput({
     name,
     description,
@@ -176,28 +159,27 @@ function createService({
     isOpen
   });
 
-  if (findServiceByName(name)) {
+  const duplicate = await repository.findByName(
+    name.trim()
+  );
+
+  if (duplicate) {
     throw new HttpError(
       409,
       "A service with this name already exists."
     );
   }
 
-  const service = {
-    id: `service-${crypto.randomUUID()}`,
+  return repository.create({
     name: name.trim(),
     description: description.trim(),
-    expectedDuration: expectedDuration,
-    priorityLevel: priorityLevel,
-    isOpen: isOpen
-  };
-
-  services.push(service);
-
-  return service;
+    expectedDuration,
+    priorityLevel,
+    isOpen
+  });
 }
 
-function updateService(
+async function updateService(
   serviceId,
   {
     name,
@@ -205,9 +187,12 @@ function updateService(
     expectedDuration,
     priorityLevel,
     isOpen
-  }
+  },
+  repository = serviceRepository
 ) {
-  const service = getService(serviceId);
+  const id = validateServiceId(serviceId);
+
+  await getService(id, repository);
 
   validateServiceInput({
     name,
@@ -217,68 +202,63 @@ function updateService(
     isOpen
   });
 
-  if (findServiceByName(name, serviceId)) {
+  const duplicate = await repository.findByName(
+    name.trim(),
+    id
+  );
+
+  if (duplicate) {
     throw new HttpError(
       409,
       "A service with this name already exists."
     );
   }
 
-  service.name = name.trim();
-  service.description = description.trim();
-  service.expectedDuration = expectedDuration;
-  service.priorityLevel = priorityLevel;
-  service.isOpen = isOpen;
+  const updated = await repository.update(id, {
+    name: name.trim(),
+    description: description.trim(),
+    expectedDuration,
+    priorityLevel,
+    isOpen
+  });
 
-  return service;
-}
-
-function deleteService(serviceId) {
-  const service = getService(serviceId);
-
-  const hasWaitingUsers = queueEntries.some(
-    function (entry) {
-      return (
-        entry.serviceId === serviceId &&
-        entry.status === "waiting"
-      );
-    }
-  );
-
-  if (hasWaitingUsers) {
+  if (!updated) {
     throw new HttpError(
-      409,
-      "This service cannot be deleted while users are waiting in its queue."
+      404,
+      "Service was not found."
     );
   }
 
-  const index = services.findIndex(
-    function (item) {
-      return item.id === serviceId;
-    }
-  );
+  return updated;
+}
 
-  services.splice(index, 1);
+async function deleteService(
+  serviceId,
+  repository = serviceRepository
+) {
+  const id = validateServiceId(serviceId);
+  const service = await getService(id, repository);
+  const deleted = await repository.remove(id);
+
+  if (!deleted) {
+    throw new HttpError(
+      404,
+      "Service was not found."
+    );
+  }
 
   return service;
 }
-
-function listServices() {
-  return services.map(
-    function (service) {
-      return {
-        ...service,
-        queueLength: countWaiting(
-          service.id
-        )
-      };
-    }
-  );
+async function listServices(
+  repository = serviceRepository
+) {
+  return repository.findAll();
 }
 
 module.exports = {
   PRIORITY_WEIGHT,
   validateServiceInput,
+  validateServiceId,
   getService,
   createService,
   updateService,

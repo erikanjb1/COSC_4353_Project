@@ -1,31 +1,31 @@
+'use strict';
+
 const serviceManagementService = require(
   "../services/serviceManagementService"
 );
 
-function listServices(_req, res, next) {
+async function listServices(_req, res, next) {
   try {
+    const services = await serviceManagementService.listServices();
+
     res.status(200).json({
       success: true,
-      data:
-        serviceManagementService.listServices()
+      data: services
     });
   } catch (error) {
     next(error);
   }
 }
 
-function createService(req, res, next) {
+async function createService(req, res, next) {
   try {
-    const result =
-      serviceManagementService.createService({
-        name: req.body.name,
-        description: req.body.description,
-        expectedDuration:
-          req.body.expectedDuration,
-        priorityLevel:
-          req.body.priorityLevel,
-        isOpen: req.body.isOpen
-      });
+    const result = await serviceManagementService.createService({
+      name: req.body.name,
+      description: req.body.description,
+      expectedDuration: req.body.expectedDuration,
+      priorityLevel: req.body.priorityLevel,
+      isOpen: req.body.isOpen
+    });
 
     res.status(201).json({
       success: true,
@@ -36,21 +36,18 @@ function createService(req, res, next) {
   }
 }
 
-function updateService(req, res, next) {
+async function updateService(req, res, next) {
   try {
-    const result =
-      serviceManagementService.updateService(
-        req.params.serviceId,
-        {
-          name: req.body.name,
-          description: req.body.description,
-          expectedDuration:
-            req.body.expectedDuration,
-          priorityLevel:
-            req.body.priorityLevel,
-          isOpen: req.body.isOpen
-        }
-      );
+    const result = await serviceManagementService.updateService(
+      req.params.serviceId,
+      {
+        name: req.body.name,
+        description: req.body.description,
+        expectedDuration: req.body.expectedDuration,
+        priorityLevel: req.body.priorityLevel,
+        isOpen: req.body.isOpen
+      }
+    );
 
     res.status(200).json({
       success: true,
@@ -61,12 +58,11 @@ function updateService(req, res, next) {
   }
 }
 
-function deleteService(req, res, next) {
+async function deleteService(req, res, next) {
   try {
-    const result =
-      serviceManagementService.deleteService(
-        req.params.serviceId
-      );
+    const result = await serviceManagementService.deleteService(
+      req.params.serviceId
+    );
 
     res.status(200).json({
       success: true,
