@@ -1,12 +1,8 @@
-const crypto = require("node:crypto");
+const bcrypt = require("bcrypt");
 
-const {
-  users
-} = require("../data/store");
+const { pool } = require("../data/db");
 
-const HttpError = require(
-  "../utils/httpError"
-);
+const HttpError = require("../utils/httpError");
 
 function validateRegistrationInput(input) {
   const errors = [];
@@ -62,16 +58,6 @@ function validateRegistrationInput(input) {
     );
   }
 
-  if (
-    input.role !== undefined &&
-    !["user", "administrator"].includes(
-      input.role
-    )
-  ) {
-    errors.push(
-      "Role must be user or administrator."
-    );
-  }
 
   if (errors.length > 0) {
     throw new HttpError(
@@ -119,52 +105,61 @@ function validateLoginInput(input) {
   }
 }
 
-function registerUser({
+async function registerUser({
   email,
-  password,
-  role
+  password
 }) {
   validateRegistrationInput({
     email,
-    password,
-    role
+    password
   });
 
   const normalizedEmail =
     email.trim().toLowerCase();
 
-  const existingUser = users.find(
-    function (user) {
-      return user.email === normalizedEmail;
-    }
-  );
+  const [existingUsers] =
+    await pool.execute(
+      `
+      SELECT User_ID
+      FROM UserCredentials
+      WHERE Email = ?
+      `,
+      [normalizedEmail]
+    );
 
-  if (existingUser) {
+  if (existingUsers.length > 0) {
     throw new HttpError(
       409,
       "An account with this email already exists."
     );
   }
 
-  const newUser = {
-    id: crypto.randomUUID(),
-    email: normalizedEmail,
-    password,
-    role: role || "user",
-    createdAt: new Date().toISOString()
-  };
+  const hashedPassword =
+    await bcrypt.hash(password, 10);
 
-  users.push(newUser);
+  const [result] =
+    await pool.execute(
+      `
+      INSERT INTO UserCredentials
+        (Email, Password, Role)
+      VALUES
+        (?, ?, ?)
+      `,
+      [
+        normalizedEmail,
+        hashedPassword,
+        "user"
+      ]
+    );
 
   return {
-    id: newUser.id,
-    email: newUser.email,
-    role: newUser.role,
-    createdAt: newUser.createdAt
+    id: result.insertId,
+    email: normalizedEmail,
+    role: "user"
   };
 }
 
-function loginUser({
+async function loginUser({
   email,
   password
 }) {
@@ -176,16 +171,36 @@ function loginUser({
   const normalizedEmail =
     email.trim().toLowerCase();
 
-  const user = users.find(
-    function (item) {
-      return (
-        item.email === normalizedEmail &&
-        item.password === password
-      );
-    }
-  );
+  const [rows] =
+    await pool.execute(
+      `
+      SELECT
+        User_ID,
+        Email,
+        Password,
+        Role
+      FROM UserCredentials
+      WHERE Email = ?
+      `,
+      [normalizedEmail]
+    );
 
-  if (!user) {
+  if (rows.length === 0) {
+    throw new HttpError(
+      401,
+      "Email or password is incorrect."
+    );
+  }
+
+  const user = rows[0];
+
+  const passwordMatches =
+    await bcrypt.compare(
+      password,
+      user.Password
+    );
+
+  if (!passwordMatches) {
     throw new HttpError(
       401,
       "Email or password is incorrect."
@@ -194,12 +209,12 @@ function loginUser({
 
   return {
     user: {
-      id: user.id,
-      email: user.email,
-      role: user.role
+      id: user.User_ID,
+      email: user.Email,
+      role: user.Role
     },
 
-    token: `mock-token-${user.id}`
+    token: `mock-token-${user.User_ID}`
   };
 }
 

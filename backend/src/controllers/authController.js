@@ -2,13 +2,12 @@ const authService = require(
   "../services/authService"
 );
 
-function register(req, res, next) {
+async function register(req, res, next) {
   try {
     const result =
-      authService.registerUser({
+      await authService.registerUser({
         email: req.body.email,
-        password: req.body.password,
-        role: req.body.role
+        password: req.body.password
       });
 
     res.status(201).json({
@@ -20,10 +19,10 @@ function register(req, res, next) {
   }
 }
 
-function login(req, res, next) {
+async function login(req, res, next) {
   try {
     const result =
-      authService.loginUser({
+      await authService.loginUser({
         email: req.body.email,
         password: req.body.password
       });

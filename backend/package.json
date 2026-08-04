@@ -5,13 +5,17 @@
     "main": "src/server.js",
     "type": "commonjs",
     "scripts": {
-      "start": "node --env-file=.env src/server.js",
-      "dev": "node --watch --env-file=.env src/server.js",
-      "test": "node --test",
-      "coverage": "node --test --experimental-test-coverage"
+        "start": "node --env-file=.env src/server.js",
+        "dev": "node --watch --env-file=.env src/server.js",
+        "test": "node --env-file=.env --test",
+        "coverage": "node --env-file=.env --test --experimental-test-coverage"
     },
     "dependencies": {
-      "express": "^5.1.0",
-      "mysql2": "^3.11.0"
+        "bcrypt": "^6.0.0",
+        "express": "^5.1.0",
+        "mysql2": "^3.11.0"
+    },
+    "allowScripts": {
+        "bcrypt@6.0.0": true
     }
 }
