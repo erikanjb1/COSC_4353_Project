@@ -16,32 +16,56 @@ form.addEventListener('submit',async function (event) {
     const email = emailInput.value.trim();
     const password = passwordInput.value;
 
-    const errors = isRegisterPage
-        ? validateRegisterForm(
+    let errors = [];
+
+    if (isRegisterPage) {
+        const firstName =
+            document.getElementById("fname-input").value.trim();
+
+        const lastName =
+            document.getElementById("lname-input").value.trim();
+
+        const phoneNumber =
+            document.getElementById("phonenumber-input").value.trim();
+
+        errors = validateRegisterForm(
+            firstName,
+            lastName,
             email,
+            phoneNumber,
             password,
             confirmPasswordInput.value
-        )
-        : validateLoginForm(email, password);
+        );
 
-    if (errors.length > 0) {
-        errorMessage.innerText = errors.join(". ");
-        return;
-    }
-
-    try {
-        if (isRegisterPage) {
-        await registerUser(email, password);
-        } else {
-        await loginUser(email, password);
+        if (errors.length > 0) {
+            errorMessage.innerText = errors.join(". ");
+            return;
         }
-    } catch (error) {
-        errorMessage.innerText =
-        error.message || "Something went wrong.";
+
+        try {
+            await registerUser( firstName, lastName, email, phoneNumber, password );
+        } catch (error) {
+            errorMessage.innerText =
+                error.message || "Something went wrong."; }
+    } else {
+        errors = validateLoginForm(
+            email,
+            password );
+        if (errors.length > 0) {
+            errorMessage.innerText = errors.join(". ");
+            return; }
+        try {
+            await loginUser(
+                email,
+                password );
+        } catch (error) {
+            errorMessage.innerText =
+                error.message || "Something went wrong.";
+        }
     }
 });
 
-async function registerUser(email, password) {
+async function registerUser(firstName, lastName, email, phoneNumber, password) {
     const response = await fetch(
         `${API_BASE_URL}/register`,
         {
@@ -50,7 +74,10 @@ async function registerUser(email, password) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
+            firstName,
+            lastName,
             email,
+            phoneNumber,
             password
         })
         }
@@ -120,14 +147,39 @@ function validateLoginForm(email, password) {
 }
 
 function validateRegisterForm(
+    firstName,
+    lastName,
     email,
+    phoneNumber,
     password,
     confirmPassword
     ) {
     const errors = [];
-    const emailPattern =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (firstName === "") {
+        errors.push("First name is required");
+    } else if (firstName.length > 30) {
+        errors.push(
+            "First name must not exceed 30 characters"
+        );
+    }
+
+    if (lastName === "") {
+        errors.push("Last name is required");
+    } else if (lastName.length > 30) {
+        errors.push(
+            "Last name must not exceed 30 characters"
+        );
+    }
+
+    if (phoneNumber.length > 20) {
+        errors.push(
+            "Phone number must not exceed 20 characters"
+        );
+    }
+      
     if (email === "") {
         errors.push("Email is required");
     } else if (!emailPattern.test(email)) {
@@ -144,7 +196,7 @@ function validateRegisterForm(
         errors.push(
         "Password must be at least 8 characters"
         );
-    } else if (password.length > 64) {
+    } else if (password.length > 30) {
         errors.push(
         "Password must not exceed 64 characters"
         );

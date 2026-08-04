@@ -6,7 +6,10 @@ async function register(req, res, next) {
   try {
     const result =
       await authService.registerUser({
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
         email: req.body.email,
+        phoneNumber: req.body.phoneNumber,
         password: req.body.password
       });
 
