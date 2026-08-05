@@ -1,10 +1,26 @@
 const API_BASE_URL = "/api/queues";
 
-const CURRENT_USER = {
-  id: "user-1",
-  name: "first user",
-  role: "user"
-};
+function getCurrentUser() {
+  try {
+    const storedUser = JSON.parse(
+      localStorage.getItem("currentUser")
+    );
+
+    if (storedUser && storedUser.id) {
+      return storedUser;
+    }
+  } catch (_error) {
+    // Fall through to a simple local default.
+  }
+
+  return {
+    id: "1",
+    name: "first user",
+    role: "user"
+  };
+}
+
+const CURRENT_USER = getCurrentUser();
 
 let services = [];
 let currentQueue = null;
@@ -543,7 +559,10 @@ function setupJoinQueueForm() {
 
             body: JSON.stringify({
               userName:
-                CURRENT_USER.name,
+                CURRENT_USER.name ||
+                CURRENT_USER.email ||
+                "User " +
+                  CURRENT_USER.id,
 
               serviceId:
                 selectedService.id,

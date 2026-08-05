@@ -124,6 +124,8 @@ async function loginUser(email, password) {
     );
 
     localStorage.setItem("authToken", token);
+    localStorage.setItem("userId", user.id);
+    localStorage.setItem("role", user.role);
 
     if (user.role === "administrator") {
         window.location.href = "/admin";
