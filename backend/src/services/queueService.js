@@ -343,7 +343,7 @@ function leaveQueue({
     );
   }
 
-  entry.status = "left";
+  entry.status = "canceled";
   entry.leftAt =
     new Date().toISOString();
 

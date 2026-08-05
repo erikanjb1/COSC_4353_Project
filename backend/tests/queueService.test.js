@@ -246,7 +246,7 @@ test(
 
     assert.equal(
       result.status,
-      "left"
+      "canceled"
     );
 
     assert.equal(

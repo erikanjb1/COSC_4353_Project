@@ -41,11 +41,12 @@ CREATE TABLE IF NOT EXISTS QueueEntry(
     User_ID INT NOT NULL,
     User_Name VARCHAR(60) NOT NULL,
     Priority ENUM('low', 'normal', 'high') NOT NULL DEFAULT 'normal',
-    Position INT,
+    Position INT NOT NULL,
     Join_Time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     Served_At DATETIME NULL,
     Left_At DATETIME NULL,
-    Status ENUM('waiting', 'served', 'left') NOT NULL DEFAULT 'waiting',
+    Status ENUM('waiting', 'served', 'canceled') NOT NULL DEFAULT 'waiting',
+    CONSTRAINT check_QueueEntry_Position CHECK (Position >= 1),
     CONSTRAINT fk_QueueEntry_Queue FOREIGN KEY (Queue_ID) REFERENCES Queue (Queue_ID),
     CONSTRAINT fk_QueueEntry_UserCredentials FOREIGN KEY (User_ID) REFERENCES UserCredentials (User_ID)
 );
