@@ -2,9 +2,9 @@ const queueService = require(
     "../services/queueService"
   );
   
-  function joinQueue(req, res, next) {
+  async function joinQueue(req, res, next) {
     try {
-      const result = queueService.joinQueue({
+      const result = await queueService.joinQueue({
         userId: req.user.id,
         userName: req.body.userName,
         serviceId: req.body.serviceId,
@@ -20,9 +20,9 @@ const queueService = require(
     }
   }
   
-  function leaveQueue(req, res, next) {
+  async function leaveQueue(req, res, next) {
     try {
-      const result = queueService.leaveQueue({
+      const result = await queueService.leaveQueue({
         userId: req.user.id,
         serviceId: req.params.serviceId
       });
@@ -36,9 +36,9 @@ const queueService = require(
     }
   }
   
-  function viewQueue(req, res, next) {
+  async function viewQueue(req, res, next) {
     try {
-      const result = queueService.viewQueue(
+      const result = await queueService.viewQueue(
         req.params.serviceId
       );
   
@@ -51,9 +51,9 @@ const queueService = require(
     }
   }
   
-  function serveNext(req, res, next) {
+  async function serveNext(req, res, next) {
     try {
-      const result = queueService.serveNext(
+      const result = await queueService.serveNext(
         req.params.serviceId
       );
   
@@ -66,10 +66,10 @@ const queueService = require(
     }
   }
   
-  function getStatus(req, res, next) {
+  async function getStatus(req, res, next) {
     try {
       const result =
-        queueService.getUserStatus({
+        await queueService.getUserStatus({
           userId: req.user.id,
           serviceId: req.params.serviceId
         });
@@ -83,11 +83,11 @@ const queueService = require(
     }
   }
   
-  function listServices(_req, res, next) {
+  async function listServices(_req, res, next) {
     try {
       res.status(200).json({
         success: true,
-        data: queueService.listServices()
+        data: await queueService.listServices()
       });
     } catch (error) {
       next(error);

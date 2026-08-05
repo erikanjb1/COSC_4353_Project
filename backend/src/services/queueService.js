@@ -1,11 +1,13 @@
 const crypto = require("node:crypto");
 
 const {
-  services,
-  queueEntries,
   notifications,
   history
 } = require("../data/store");
+
+const queueEntryRepository = require(
+  "../data/queueEntryRepository"
+);
 
 const HttpError = require(
   "../utils/httpError"
@@ -25,6 +27,25 @@ function calculateEstimatedWaitMinutes(
     expectedDuration;
 }
 
+function validatePositiveInteger(
+  value,
+  fieldName
+) {
+  const parsedValue = Number(value);
+
+  if (
+    !Number.isInteger(parsedValue) ||
+    parsedValue <= 0
+  ) {
+    throw new HttpError(
+      400,
+      `${fieldName} must be a positive integer.`
+    );
+  }
+
+  return parsedValue;
+}
+
 function validateJoinInput(input) {
   const errors = [];
 
@@ -39,18 +60,16 @@ function validateJoinInput(input) {
     );
   }
 
+  const parsedServiceId = Number(
+    input.serviceId
+  );
+
   if (
-    typeof input.serviceId !== "string" ||
-    input.serviceId.trim() === ""
+    !Number.isInteger(parsedServiceId) ||
+    parsedServiceId <= 0
   ) {
     errors.push(
-      "serviceId is required and must be a non-empty string."
-    );
-  } else if (
-    input.serviceId.length > 50
-  ) {
-    errors.push(
-      "serviceId must not exceed 50 characters."
+      "serviceId is required and must be a positive integer."
     );
   }
 
@@ -94,12 +113,17 @@ function validateJoinInput(input) {
   }
 }
 
-function getService(serviceId) {
-  const service = services.find(
-    function (item) {
-      return item.id === serviceId;
-    }
+async function getService(
+  serviceId,
+  repository = queueEntryRepository
+) {
+  const id = validatePositiveInteger(
+    serviceId,
+    "Service ID"
   );
+
+  const service =
+    await repository.findServiceById(id);
 
   if (!service) {
     throw new HttpError(
@@ -130,17 +154,18 @@ function sortQueue(entries) {
   );
 }
 
-function activeQueueForService(serviceId) {
-  const entries = queueEntries.filter(
-    function (entry) {
-      return (
-        entry.serviceId === serviceId &&
-        entry.status === "waiting"
-      );
-    }
+async function activeQueueForService(
+  serviceId,
+  repository = queueEntryRepository
+) {
+  const id = validatePositiveInteger(
+    serviceId,
+    "Service ID"
   );
 
-  return sortQueue(entries);
+  return repository.findWaitingEntriesByServiceId(
+    id
+  );
 }
 
 function addNotification(
@@ -164,17 +189,25 @@ function addNotification(
   return notification;
 }
 
-function estimateWait(
+async function estimateWait(
   serviceId,
-  queueEntryId
+  queueEntryId,
+  repository = queueEntryRepository
 ) {
-  const service = getService(serviceId);
+  const service = await getService(
+    serviceId,
+    repository
+  );
   const queue =
-    activeQueueForService(serviceId);
+    await activeQueueForService(
+      serviceId,
+      repository
+    );
 
   const index = queue.findIndex(
     function (entry) {
-      return entry.id === queueEntryId;
+      return String(entry.id) ===
+        String(queueEntryId);
     }
   );
 
@@ -197,11 +230,15 @@ function estimateWait(
   };
 }
 
-function notifyUsersCloseToService(
-  serviceId
+async function notifyUsersCloseToService(
+  serviceId,
+  repository = queueEntryRepository
 ) {
   const queue =
-    activeQueueForService(serviceId);
+    await activeQueueForService(
+      serviceId,
+      repository
+    );
 
   queue.slice(0, 2).forEach(
     function (entry, index) {
@@ -231,19 +268,34 @@ function notifyUsersCloseToService(
   );
 }
 
-function joinQueue({
+async function joinQueue({
   userId,
   userName,
   serviceId,
   priority
-}) {
+}, repository = queueEntryRepository) {
   validateJoinInput({
     userName,
     serviceId,
     priority
   });
 
-  const service = getService(serviceId);
+  const selectedUserId =
+    validatePositiveInteger(
+      userId,
+      "User ID"
+    );
+
+  const selectedServiceId =
+    validatePositiveInteger(
+      serviceId,
+      "Service ID"
+    );
+
+  const service = await getService(
+    selectedServiceId,
+    repository
+  );
 
   if (!service.isOpen) {
     throw new HttpError(
@@ -252,14 +304,21 @@ function joinQueue({
     );
   }
 
+  const userExists =
+    await repository.userExists(
+      selectedUserId
+    );
+
+  if (!userExists) {
+    throw new HttpError(
+      404,
+      "User was not found."
+    );
+  }
+
   const alreadyInAnyQueue =
-    queueEntries.find(
-      function (entry) {
-        return (
-          entry.userId === userId &&
-          entry.status === "waiting"
-        );
-      }
+    await repository.findWaitingEntryForUser(
+      selectedUserId
     );
 
   if (alreadyInAnyQueue) {
@@ -269,22 +328,43 @@ function joinQueue({
     );
   }
 
-  const entry = {
-    id: crypto.randomUUID(),
-    userId: userId,
-    userName: userName.trim(),
-    serviceId: serviceId,
-    priority:
-      priority ??
-      service.priorityLevel ??
-      "normal",
-    joinedAt: new Date().toISOString(),
-    status: "waiting",
-    servedAt: null,
-    leftAt: null
-  };
+  let queue =
+    await repository.findOpenQueueByServiceId(
+      selectedServiceId
+    );
 
-  queueEntries.push(entry);
+  if (!queue) {
+    queue =
+      await repository.createOpenQueue(
+        selectedServiceId
+      );
+  }
+
+  const position =
+    await repository.countWaitingEntries(
+      queue.queueId
+    ) + 1;
+
+  const createdEntry =
+    await repository.createEntry({
+      queueId: queue.queueId,
+      userId: selectedUserId,
+      userName: userName.trim(),
+      priority:
+        priority ??
+        service.priorityLevel ??
+        "normal",
+      position
+    });
+
+  await repository.resequenceQueue(
+    queue.queueId
+  );
+
+  const entry =
+    await repository.findEntryById(
+      createdEntry.queueEntryId
+    );
 
   history.unshift({
     id: crypto.randomUUID(),
@@ -298,17 +378,21 @@ function joinQueue({
   });
 
   const notification = addNotification(
-    userId,
+    selectedUserId,
     "QUEUE_JOINED",
     `You joined the ${service.name} queue.`,
     entry.id
   );
 
-  notifyUsersCloseToService(serviceId);
+  await notifyUsersCloseToService(
+    selectedServiceId,
+    repository
+  );
 
-  const wait = estimateWait(
-    serviceId,
-    entry.id
+  const wait = await estimateWait(
+    selectedServiceId,
+    entry.id,
+    repository
   );
 
   return {
@@ -320,21 +404,33 @@ function joinQueue({
   };
 }
 
-function leaveQueue({
+async function leaveQueue({
   userId,
   serviceId
-}) {
-  const service = getService(serviceId);
+}, repository = queueEntryRepository) {
+  const selectedUserId =
+    validatePositiveInteger(
+      userId,
+      "User ID"
+    );
 
-  const entry = queueEntries.find(
-    function (item) {
-      return (
-        item.userId === userId &&
-        item.serviceId === serviceId &&
-        item.status === "waiting"
-      );
-    }
+  const selectedServiceId =
+    validatePositiveInteger(
+      serviceId,
+      "Service ID"
+    );
+
+  const service = await getService(
+    selectedServiceId,
+    repository
   );
+
+  const entry =
+    await repository
+      .findWaitingEntryForUserAndService(
+        selectedUserId,
+        selectedServiceId
+      );
 
   if (!entry) {
     throw new HttpError(
@@ -343,38 +439,71 @@ function leaveQueue({
     );
   }
 
-  entry.status = "canceled";
-  entry.leftAt =
-    new Date().toISOString();
+  const updatedEntry =
+    await repository.updateEntryStatus(
+      entry.queueEntryId,
+      "canceled"
+    );
+
+  await repository.resequenceQueue(
+    entry.queueId
+  );
+
+  if (!updatedEntry) {
+    throw new HttpError(
+      404,
+      "No active queue entry was found for this user."
+    );
+  }
 
   history.unshift({
     id: crypto.randomUUID(),
-    queueEntryId: entry.id,
-    userId: entry.userId,
-    serviceId: entry.serviceId,
+    queueEntryId: updatedEntry.id,
+    userId: updatedEntry.userId,
+    serviceId: updatedEntry.serviceId,
     serviceName: service.name,
-    joinedAt: entry.joinedAt,
-    completedAt: entry.leftAt,
+    joinedAt: updatedEntry.joinedAt,
+    completedAt: updatedEntry.leftAt,
     outcome: "Left Queue"
   });
 
   addNotification(
-    userId,
+    selectedUserId,
     "QUEUE_LEFT",
     `You left the ${service.name} queue.`,
-    entry.id
+    updatedEntry.id
   );
 
-  notifyUsersCloseToService(serviceId);
+  await notifyUsersCloseToService(
+    selectedServiceId,
+    repository
+  );
 
-  return entry;
+  return updatedEntry;
 }
 
-function viewQueue(serviceId) {
-  const service = getService(serviceId);
+async function viewQueue(
+  serviceId,
+  repository = queueEntryRepository
+) {
+  const selectedServiceId =
+    validatePositiveInteger(
+      serviceId,
+      "Service ID"
+    );
+
+  const service = await getService(
+    selectedServiceId,
+    repository
+  );
 
   const queue =
-    activeQueueForService(serviceId).map(
+    (
+      await activeQueueForService(
+        selectedServiceId,
+        repository
+      )
+    ).map(
       function (entry, index) {
         const position = index + 1;
 
@@ -397,10 +526,26 @@ function viewQueue(serviceId) {
   };
 }
 
-function serveNext(serviceId) {
-  const service = getService(serviceId);
+async function serveNext(
+  serviceId,
+  repository = queueEntryRepository
+) {
+  const selectedServiceId =
+    validatePositiveInteger(
+      serviceId,
+      "Service ID"
+    );
+
+  const service = await getService(
+    selectedServiceId,
+    repository
+  );
+
   const queue =
-    activeQueueForService(serviceId);
+    await activeQueueForService(
+      selectedServiceId,
+      repository
+    );
 
   if (queue.length === 0) {
     throw new HttpError(
@@ -411,49 +556,67 @@ function serveNext(serviceId) {
 
   const entry = queue[0];
 
-  entry.status = "served";
-  entry.servedAt =
-    new Date().toISOString();
+  const updatedEntry =
+    await repository.updateEntryStatus(
+      entry.queueEntryId,
+      "served"
+    );
+
+  await repository.resequenceQueue(
+    entry.queueId
+  );
 
   history.unshift({
     id: crypto.randomUUID(),
-    queueEntryId: entry.id,
-    userId: entry.userId,
-    serviceId: entry.serviceId,
+    queueEntryId: updatedEntry.id,
+    userId: updatedEntry.userId,
+    serviceId: updatedEntry.serviceId,
     serviceName: service.name,
-    joinedAt: entry.joinedAt,
-    completedAt: entry.servedAt,
+    joinedAt: updatedEntry.joinedAt,
+    completedAt: updatedEntry.servedAt,
     outcome: "Served"
   });
 
   const notification = addNotification(
-    entry.userId,
+    updatedEntry.userId,
     "SERVED",
     `You are now being served for ${service.name}.`,
-    entry.id
+    updatedEntry.id
   );
 
-  notifyUsersCloseToService(serviceId);
+  await notifyUsersCloseToService(
+    selectedServiceId,
+    repository
+  );
 
   return {
-    entry: entry,
+    entry: updatedEntry,
     notification: notification
   };
 }
 
-function getUserStatus({
+async function getUserStatus({
   userId,
   serviceId
-}) {
-  const entry = queueEntries.find(
-    function (item) {
-      return (
-        item.userId === userId &&
-        item.serviceId === serviceId &&
-        item.status === "waiting"
+}, repository = queueEntryRepository) {
+  const selectedUserId =
+    validatePositiveInteger(
+      userId,
+      "User ID"
+    );
+
+  const selectedServiceId =
+    validatePositiveInteger(
+      serviceId,
+      "Service ID"
+    );
+
+  const entry =
+    await repository
+      .findWaitingEntryForUserAndService(
+        selectedUserId,
+        selectedServiceId
       );
-    }
-  );
 
   if (!entry) {
     throw new HttpError(
@@ -462,11 +625,15 @@ function getUserStatus({
     );
   }
 
-  const service = getService(serviceId);
+  const service = await getService(
+    selectedServiceId,
+    repository
+  );
 
-  const wait = estimateWait(
-    serviceId,
-    entry.id
+  const wait = await estimateWait(
+    selectedServiceId,
+    entry.id,
+    repository
   );
 
   let displayStatus = "Waiting";
@@ -485,20 +652,19 @@ function getUserStatus({
   };
 }
 
-function listServices() {
+async function listServices(
+  repository = queueEntryRepository
+) {
+  const services =
+    await repository.findServicesWithQueueLengths();
+
   return services.map(
     function (service) {
-      const queueLength =
-        activeQueueForService(
-          service.id
-        ).length;
-
       return {
         ...service,
-        queueLength: queueLength,
         estimatedWaitMinutes:
           calculateEstimatedWaitMinutes(
-            queueLength + 1,
+            service.queueLength + 1,
             service.expectedDuration
           )
       };
@@ -509,7 +675,8 @@ function listServices() {
 function getUserNotifications(userId) {
   return notifications.filter(
     function (item) {
-      return item.userId === userId;
+      return String(item.userId) ===
+        String(userId);
     }
   );
 }
@@ -517,7 +684,8 @@ function getUserNotifications(userId) {
 function getUserHistory(userId) {
   return history.filter(
     function (item) {
-      return item.userId === userId;
+      return String(item.userId) ===
+        String(userId);
     }
   );
 }
@@ -525,6 +693,7 @@ function getUserHistory(userId) {
 module.exports = {
   PRIORITY_WEIGHT,
   calculateEstimatedWaitMinutes,
+  validatePositiveInteger,
   validateJoinInput,
   sortQueue,
   joinQueue,

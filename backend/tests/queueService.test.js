@@ -4,7 +4,6 @@ const assert = require(
 );
 
 const {
-  queueEntries,
   notifications,
   history,
   resetStore
@@ -26,18 +25,290 @@ const {
   "../src/services/queueService"
 );
 
-function join(
+const SERVICES = [
+  {
+    id: 1,
+    name: "Academic Advising",
+    description:
+      "Students can meet with an advisor to plan classes and discuss degree requirements.",
+    expectedDuration: 20,
+    priorityLevel: "normal",
+    isOpen: true
+  },
+  {
+    id: 2,
+    name: "Clinic Check-In",
+    description:
+      "Patients can check in for clinic services and receive wait-time updates.",
+    expectedDuration: 15,
+    priorityLevel: "high",
+    isOpen: true
+  }
+];
+
+function clone(value) {
+  return value ? { ...value } : null;
+}
+
+function createFakeRepository() {
+  const services = SERVICES.map(clone);
+  const queues = [];
+  const entries = [];
+  let nextQueueId = 1;
+  let nextEntryId = 1;
+
+  function findQueue(queueId) {
+    return queues.find(
+      function (queue) {
+        return queue.queueId === Number(queueId);
+      }
+    );
+  }
+
+  function findOpenQueue(serviceId) {
+    return queues.find(
+      function (queue) {
+        return (
+          queue.serviceId === Number(serviceId) &&
+          queue.status === "open"
+        );
+      }
+    );
+  }
+
+  function entryService(entry) {
+    const queue = findQueue(entry.queueId);
+
+    return services.find(
+      function (service) {
+        return service.id === queue.serviceId;
+      }
+    );
+  }
+
+  function cloneEntry(entry) {
+    if (!entry) {
+      return null;
+    }
+
+    const service = entryService(entry);
+
+    return {
+      ...entry,
+      serviceId: service.id,
+      serviceName: service.name
+    };
+  }
+
+  function sortedWaitingEntries(queueId) {
+    return sortQueue(
+      entries.filter(
+        function (entry) {
+          return (
+            entry.queueId === Number(queueId) &&
+            entry.status === "waiting"
+          );
+        }
+      )
+    );
+  }
+
+  return {
+    services,
+    queues,
+    entries,
+
+    async findServiceById(serviceId) {
+      return clone(
+        services.find(
+          function (service) {
+            return service.id === Number(serviceId);
+          }
+        )
+      );
+    },
+
+    async findServicesWithQueueLengths() {
+      return services.map(
+        function (service) {
+          const queue = findOpenQueue(service.id);
+          const queueLength = queue
+            ? sortedWaitingEntries(queue.queueId).length
+            : 0;
+
+          return {
+            ...service,
+            queueLength
+          };
+        }
+      );
+    },
+
+    async findOpenQueueByServiceId(serviceId) {
+      return clone(findOpenQueue(serviceId));
+    },
+
+    async createOpenQueue(serviceId) {
+      const queue = {
+        queueId: nextQueueId++,
+        serviceId: Number(serviceId),
+        status: "open"
+      };
+
+      queues.push(queue);
+
+      return clone(queue);
+    },
+
+    async userExists() {
+      return true;
+    },
+
+    async findWaitingEntryForUser(userId) {
+      return cloneEntry(
+        entries.find(
+          function (entry) {
+            return (
+              entry.userId === Number(userId) &&
+              entry.status === "waiting"
+            );
+          }
+        )
+      );
+    },
+
+    async findWaitingEntryForUserAndService(
+      userId,
+      serviceId
+    ) {
+      return cloneEntry(
+        entries.find(
+          function (entry) {
+            const queue = findQueue(entry.queueId);
+
+            return (
+              entry.userId === Number(userId) &&
+              queue.serviceId ===
+                Number(serviceId) &&
+              entry.status === "waiting"
+            );
+          }
+        )
+      );
+    },
+
+    async findWaitingEntriesByServiceId(serviceId) {
+      const queue = findOpenQueue(serviceId);
+
+      if (!queue) {
+        return [];
+      }
+
+      return sortedWaitingEntries(
+        queue.queueId
+      ).map(cloneEntry);
+    },
+
+    async countWaitingEntries(queueId) {
+      return sortedWaitingEntries(queueId).length;
+    },
+
+    async createEntry(entry) {
+      const queue = findQueue(entry.queueId);
+      const service = services.find(
+        function (item) {
+          return item.id === queue.serviceId;
+        }
+      );
+
+      const savedEntry = {
+        id: String(nextEntryId),
+        queueEntryId: nextEntryId,
+        queueId: entry.queueId,
+        serviceId: service.id,
+        serviceName: service.name,
+        userId: entry.userId,
+        userName: entry.userName,
+        priority: entry.priority,
+        position: entry.position,
+        joinedAt: new Date(
+          Date.UTC(2026, 7, 1, 12, 0, nextEntryId)
+        ).toISOString(),
+        servedAt: null,
+        leftAt: null,
+        status: "waiting"
+      };
+
+      nextEntryId += 1;
+      entries.push(savedEntry);
+
+      return clone(savedEntry);
+    },
+
+    async findEntryById(entryId) {
+      return cloneEntry(
+        entries.find(
+          function (entry) {
+            return entry.queueEntryId ===
+              Number(entryId);
+          }
+        )
+      );
+    },
+
+    async updateEntryStatus(entryId, status) {
+      const entry = entries.find(
+        function (item) {
+          return item.queueEntryId ===
+            Number(entryId);
+        }
+      );
+
+      if (!entry) {
+        return null;
+      }
+
+      entry.status = status;
+
+      if (status === "served") {
+        entry.servedAt =
+          "2026-08-01T12:30:00.000Z";
+      }
+
+      if (status === "canceled") {
+        entry.leftAt =
+          "2026-08-01T12:15:00.000Z";
+      }
+
+      return cloneEntry(entry);
+    },
+
+    async resequenceQueue(queueId) {
+      sortedWaitingEntries(queueId).forEach(
+        function (entry, index) {
+          entry.position = index + 1;
+        }
+      );
+    }
+  };
+}
+
+async function join(
+  repository,
   userId,
   userName,
-  serviceId = "service-1",
+  serviceId = 1,
   priority = "normal"
 ) {
-  return joinQueue({
-    userId,
-    userName,
-    serviceId,
-    priority
-  });
+  return joinQueue(
+    {
+      userId,
+      userName,
+      serviceId,
+      priority
+    },
+    repository
+  );
 }
 
 test.beforeEach(function () {
@@ -87,10 +358,13 @@ test(
 );
 
 test(
-  "joins a queue and creates notifications",
-  function () {
-    const result = join(
-      "user-1",
+  "joins a queue and persists the entry through the repository",
+  async function () {
+    const repository = createFakeRepository();
+
+    const result = await join(
+      repository,
+      1,
       "first user"
     );
 
@@ -107,7 +381,7 @@ test(
     );
 
     assert.equal(
-      queueEntries.length,
+      repository.entries.length,
       1
     );
 
@@ -131,18 +405,22 @@ test(
 
 test(
   "prevents a user from joining more than one active queue",
-  function () {
-    join(
-      "user-1",
+  async function () {
+    const repository = createFakeRepository();
+
+    await join(
+      repository,
+      1,
       "first user"
     );
 
-    assert.throws(
+    await assert.rejects(
       function () {
-        join(
-          "user-1",
+        return join(
+          repository,
+          1,
           "first user",
-          "service-2"
+          2
         );
       },
       function (error) {
@@ -192,14 +470,18 @@ test(
 
 test(
   "calculates queue position and wait time",
-  function () {
-    join(
-      "user-1",
+  async function () {
+    const repository = createFakeRepository();
+
+    await join(
+      repository,
+      1,
       "First User"
     );
 
-    const second = join(
-      "user-2",
+    const second = await join(
+      repository,
+      2,
       "Second User"
     );
 
@@ -214,10 +496,13 @@ test(
     );
 
     const status =
-      getUserStatus({
-        userId: "user-2",
-        serviceId: "service-1"
-      });
+      await getUserStatus(
+        {
+          userId: 2,
+          serviceId: 1
+        },
+        repository
+      );
 
     assert.equal(
       status.position,
@@ -233,19 +518,30 @@ test(
 
 test(
   "allows a user to leave and records history",
-  function () {
-    join(
-      "user-1",
+  async function () {
+    const repository = createFakeRepository();
+
+    await join(
+      repository,
+      1,
       "First User"
     );
 
-    const result = leaveQueue({
-      userId: "user-1",
-      serviceId: "service-1"
-    });
+    const result = await leaveQueue(
+      {
+        userId: 1,
+        serviceId: 1
+      },
+      repository
+    );
 
     assert.equal(
       result.status,
+      "canceled"
+    );
+
+    assert.equal(
+      repository.entries[0].status,
       "canceled"
     );
 
@@ -258,19 +554,23 @@ test(
 
 test(
   "administrator can view the current queue",
-  function () {
-    join(
-      "user-1",
+  async function () {
+    const repository = createFakeRepository();
+
+    await join(
+      repository,
+      1,
       "First User"
     );
 
-    join(
-      "user-2",
+    await join(
+      repository,
+      2,
       "Second User"
     );
 
     const result =
-      viewQueue("service-1");
+      await viewQueue(1, repository);
 
     assert.equal(
       result.totalWaiting,
@@ -291,32 +591,45 @@ test(
 );
 
 test(
-  "serves the highest-priority next user",
-  function () {
-    join(
-      "user-1",
+  "administrator action marks the next user served",
+  async function () {
+    const repository = createFakeRepository();
+
+    await join(
+      repository,
+      1,
       "Normal User",
-      "service-1",
+      1,
       "normal"
     );
 
-    join(
-      "user-2",
+    await join(
+      repository,
+      2,
       "Priority User",
-      "service-1",
+      1,
       "high"
     );
 
     const result =
-      serveNext("service-1");
+      await serveNext(1, repository);
 
     assert.equal(
       result.entry.userId,
-      "user-2"
+      2
     );
 
     assert.equal(
       result.entry.status,
+      "served"
+    );
+
+    assert.equal(
+      repository.entries.find(
+        function (entry) {
+          return entry.userId === 2;
+        }
+      ).status,
       "served"
     );
 
@@ -329,20 +642,21 @@ test(
 
 test(
   "lists services with current queue lengths",
-  function () {
-    join(
-      "user-1",
+  async function () {
+    const repository = createFakeRepository();
+
+    await join(
+      repository,
+      1,
       "First User"
     );
 
     const result =
-      listServices();
+      await listServices(repository);
 
     const service = result.find(
       function (item) {
-        return (
-          item.id === "service-1"
-        );
+        return item.id === 1;
       }
     );
 
@@ -360,39 +674,46 @@ test(
 
 test(
   "returns notifications and history for only the selected user",
-  function () {
-    join(
-      "user-1",
+  async function () {
+    const repository = createFakeRepository();
+
+    await join(
+      repository,
+      1,
       "First User"
     );
 
-    join(
-      "user-2",
+    await join(
+      repository,
+      2,
       "Second User",
-      "service-2"
+      2
     );
 
-    leaveQueue({
-      userId: "user-1",
-      serviceId: "service-1"
-    });
+    await leaveQueue(
+      {
+        userId: 1,
+        serviceId: 1
+      },
+      repository
+    );
 
     assert.ok(
       getUserNotifications(
-        "user-1"
+        1
       ).length > 0
     );
 
     assert.equal(
       getUserHistory(
-        "user-1"
+        1
       ).length,
       2
     );
 
     assert.equal(
       getUserHistory(
-        "user-2"
+        2
       ).length,
       1
     );
@@ -401,10 +722,12 @@ test(
 
 test(
   "returns not found when serving an empty queue",
-  function () {
-    assert.throws(
+  async function () {
+    const repository = createFakeRepository();
+
+    await assert.rejects(
       function () {
-        serveNext("service-1");
+        return serveNext(1, repository);
       },
       function (error) {
         return error.status === 404;
