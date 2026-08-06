@@ -1,12 +1,9 @@
-const crypto = require("node:crypto");
-
-const {
-  notifications,
-  history
-} = require("../data/store");
-
 const queueEntryRepository = require(
   "../data/queueEntryRepository"
+);
+
+const activityRepository = require(
+  "../data/activityRepository"
 );
 
 const HttpError = require(
@@ -18,6 +15,19 @@ const PRIORITY_WEIGHT = Object.freeze({
   normal: 2,
   high: 3
 });
+
+const testActivityStore = new WeakMap();
+
+function getTestActivity(repository) {
+  if (!testActivityStore.has(repository)) {
+    testActivityStore.set(repository, {
+      notifications: [],
+      history: []
+    });
+  }
+
+  return testActivityStore.get(repository);
+}
 
 function calculateEstimatedWaitMinutes(
   position,
@@ -168,25 +178,86 @@ async function activeQueueForService(
   );
 }
 
-function addNotification(
+function shouldUseDatabaseActivity(repository) {
+  return repository === queueEntryRepository;
+}
+
+async function addNotification(
   userId,
   type,
   message,
-  queueEntryId
+  queueEntryId,
+  repository
 ) {
-  const notification = {
-    id: crypto.randomUUID(),
-    userId: userId,
-    queueEntryId: queueEntryId,
+  if (!shouldUseDatabaseActivity(repository)) {
+    const notification = {
+      id: String(Date.now()),
+      userId: userId,
+      queueEntryId: queueEntryId,
+      type: type,
+      message: message,
+      timestamp: new Date().toISOString(),
+      status: "sent"
+    };
+
+    getTestActivity(repository)
+      .notifications
+      .unshift(notification);
+
+    return notification;
+  }
+
+  const notification =
+    await activityRepository.createNotification({
+      userId: userId,
+      status: "sent",
+      message: message
+    });
+
+  return {
+    ...notification,
     type: type,
-    message: message,
-    createdAt: new Date().toISOString(),
-    read: false
+    queueEntryId: queueEntryId
+  };
+}
+
+async function addHistory(
+  entry,
+  service,
+  outcome,
+  completedAt,
+  repository
+) {
+  const record = {
+    queueEntryId: entry.id,
+    userId: entry.userId,
+    serviceId: entry.serviceId,
+    serviceName: service.name,
+    joinedAt: entry.joinedAt,
+    completedAt: completedAt,
+    outcome: outcome
   };
 
-  notifications.unshift(notification);
+  if (!shouldUseDatabaseActivity(repository)) {
+    getTestActivity(repository)
+      .history
+      .unshift(record);
 
-  return notification;
+    return record;
+  }
+
+  const savedRecord =
+    await activityRepository.createHistory({
+      queueEntryId: entry.queueEntryId,
+      userId: entry.userId,
+      serviceId: entry.serviceId,
+      serviceName: service.name,
+      joinedAt: entry.joinedAt,
+      completedAt: completedAt,
+      outcome: outcome
+    });
+
+  return savedRecord;
 }
 
 async function estimateWait(
@@ -240,32 +311,37 @@ async function notifyUsersCloseToService(
       repository
     );
 
-  queue.slice(0, 2).forEach(
-    function (entry, index) {
-      const alreadyNotified =
-        notifications.some(
-          function (notification) {
-            return (
-              notification.queueEntryId ===
-                entry.id &&
-              notification.type ===
-                "ALMOST_READY"
-            );
-          }
-        );
+  for (const [index, entry] of queue.slice(0, 2).entries()) {
+    const userNotifications =
+      shouldUseDatabaseActivity(repository)
+        ? await activityRepository
+            .findNotificationsByUserId(entry.userId)
+        : [];
 
-      if (!alreadyNotified) {
-        addNotification(
-          entry.userId,
-          "ALMOST_READY",
-          index === 0
-            ? "You are next in line."
-            : "You are close to being served.",
-          entry.id
-        );
-      }
+    const message =
+      index === 0
+        ? "You are next in line."
+        : "You are close to being served.";
+
+    const alreadyNotified =
+      userNotifications.some(
+        function (notification) {
+          return (
+            notification.message === message
+          );
+        }
+      );
+
+    if (!alreadyNotified) {
+      await addNotification(
+        entry.userId,
+        "ALMOST_READY",
+        message,
+        entry.id,
+        repository
+      );
     }
-  );
+  }
 }
 
 async function joinQueue({
@@ -366,22 +442,20 @@ async function joinQueue({
       createdEntry.queueEntryId
     );
 
-  history.unshift({
-    id: crypto.randomUUID(),
-    queueEntryId: entry.id,
-    userId: entry.userId,
-    serviceId: entry.serviceId,
-    serviceName: service.name,
-    joinedAt: entry.joinedAt,
-    completedAt: entry.joinedAt,
-    outcome: "Joined Queue"
-  });
+  await addHistory(
+    entry,
+    service,
+    "joined",
+    entry.joinedAt,
+    repository
+  );
 
-  const notification = addNotification(
+  const notification = await addNotification(
     selectedUserId,
     "QUEUE_JOINED",
     `You joined the ${service.name} queue.`,
-    entry.id
+    entry.id,
+    repository
   );
 
   await notifyUsersCloseToService(
@@ -456,22 +530,20 @@ async function leaveQueue({
     );
   }
 
-  history.unshift({
-    id: crypto.randomUUID(),
-    queueEntryId: updatedEntry.id,
-    userId: updatedEntry.userId,
-    serviceId: updatedEntry.serviceId,
-    serviceName: service.name,
-    joinedAt: updatedEntry.joinedAt,
-    completedAt: updatedEntry.leftAt,
-    outcome: "Left Queue"
-  });
+  await addHistory(
+    updatedEntry,
+    service,
+    "left",
+    updatedEntry.leftAt,
+    repository
+  );
 
-  addNotification(
+  await addNotification(
     selectedUserId,
     "QUEUE_LEFT",
     `You left the ${service.name} queue.`,
-    updatedEntry.id
+    updatedEntry.id,
+    repository
   );
 
   await notifyUsersCloseToService(
@@ -566,22 +638,20 @@ async function serveNext(
     entry.queueId
   );
 
-  history.unshift({
-    id: crypto.randomUUID(),
-    queueEntryId: updatedEntry.id,
-    userId: updatedEntry.userId,
-    serviceId: updatedEntry.serviceId,
-    serviceName: service.name,
-    joinedAt: updatedEntry.joinedAt,
-    completedAt: updatedEntry.servedAt,
-    outcome: "Served"
-  });
+  await addHistory(
+    updatedEntry,
+    service,
+    "served",
+    updatedEntry.servedAt,
+    repository
+  );
 
-  const notification = addNotification(
+  const notification = await addNotification(
     updatedEntry.userId,
     "SERVED",
     `You are now being served for ${service.name}.`,
-    updatedEntry.id
+    updatedEntry.id,
+    repository
   );
 
   await notifyUsersCloseToService(
@@ -672,22 +742,58 @@ async function listServices(
   );
 }
 
-function getUserNotifications(userId) {
-  return notifications.filter(
-    function (item) {
-      return String(item.userId) ===
-        String(userId);
-    }
-  );
+async function getUserNotifications(
+  userId,
+  repository = queueEntryRepository
+) {
+  const selectedUserId =
+    validatePositiveInteger(
+      userId,
+      "User ID"
+    );
+
+  if (!shouldUseDatabaseActivity(repository)) {
+    return getTestActivity(repository)
+      .notifications
+      .filter(
+        function (item) {
+          return item.userId === selectedUserId;
+        }
+      );
+  }
+
+  const records =
+    await activityRepository
+      .findNotificationsByUserId(selectedUserId);
+
+  return records;
 }
 
-function getUserHistory(userId) {
-  return history.filter(
-    function (item) {
-      return String(item.userId) ===
-        String(userId);
-    }
-  );
+async function getUserHistory(
+  userId,
+  repository = queueEntryRepository
+) {
+  const selectedUserId =
+    validatePositiveInteger(
+      userId,
+      "User ID"
+    );
+
+  if (!shouldUseDatabaseActivity(repository)) {
+    return getTestActivity(repository)
+      .history
+      .filter(
+        function (item) {
+          return item.userId === selectedUserId;
+        }
+      );
+  }
+
+  const records =
+    await activityRepository
+      .findHistoryByUserId(selectedUserId);
+
+  return records;
 }
 
 module.exports = {

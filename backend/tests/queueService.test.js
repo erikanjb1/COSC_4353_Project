@@ -4,12 +4,6 @@ const assert = require(
 );
 
 const {
-  notifications,
-  history,
-  resetStore
-} = require("../src/data/store");
-
-const {
   calculateEstimatedWaitMinutes,
   validateJoinInput,
   sortQueue,
@@ -311,10 +305,6 @@ async function join(
   );
 }
 
-test.beforeEach(function () {
-  resetStore();
-});
-
 test(
   "calculates estimated wait from queue position and service duration",
   function () {
@@ -386,12 +376,22 @@ test(
     );
 
     assert.equal(
-      history[0].outcome,
-      "Joined Queue"
+      (
+        await getUserHistory(
+          1,
+          repository
+        )
+      )[0].outcome,
+      "joined"
     );
 
     assert.ok(
-      notifications.some(
+      (
+        await getUserNotifications(
+          1,
+          repository
+        )
+      ).some(
         function (item) {
           return (
             item.type ===
@@ -546,8 +546,13 @@ test(
     );
 
     assert.equal(
-      history[0].outcome,
-      "Left Queue"
+      (
+        await getUserHistory(
+          1,
+          repository
+        )
+      )[0].outcome,
+      "left"
     );
   }
 );
@@ -634,8 +639,13 @@ test(
     );
 
     assert.equal(
-      history[0].outcome,
-      "Served"
+      (
+        await getUserHistory(
+          2,
+          repository
+        )
+      )[0].outcome,
+      "served"
     );
   }
 );
@@ -699,21 +709,30 @@ test(
     );
 
     assert.ok(
-      getUserNotifications(
-        1
+      (
+        await getUserNotifications(
+          1,
+          repository
+        )
       ).length > 0
     );
 
     assert.equal(
-      getUserHistory(
-        1
+      (
+        await getUserHistory(
+          1,
+          repository
+        )
       ).length,
       2
     );
 
     assert.equal(
-      getUserHistory(
-        2
+      (
+        await getUserHistory(
+          2,
+          repository
+        )
       ).length,
       1
     );
