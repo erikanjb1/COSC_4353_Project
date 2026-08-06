@@ -112,7 +112,7 @@ async function loadServices() {
   if (
     state.selectedServiceId &&
     !state.services.some(function (service) {
-      return service.id === state.selectedServiceId;
+      return String(service.id) === String(state.selectedServiceId);
     })
   ) {
     state.selectedServiceId = null;
@@ -254,7 +254,7 @@ async function deleteServiceRequest(
       { method: "DELETE" }
     );
 
-    if (state.editingServiceId === serviceId) {
+    if (String(state.editingServiceId) === String(serviceId)) {
       state.editingServiceId = null;
     }
 
@@ -280,7 +280,7 @@ async function quickToggleOpen(serviceId) {
   }
 
   const service = state.services.find(function (item) {
-    return item.id === serviceId;
+    return String(item.id) === String(serviceId);
   });
 
   if (!service) {
@@ -800,7 +800,7 @@ function renderDashboard() {
           <div class="service_card_meta">
             <div class="meta_item">
               <span class="meta_label">Waiting</span>
-              <span class="meta_val">${service.queueLength}</span>
+              <span class="meta_val">${service.queueLength ?? 0}</span>
             </div>
 
             <div class="meta_item">
@@ -810,7 +810,7 @@ function renderDashboard() {
 
             <div class="meta_item">
               <span class="meta_label">Est. wait</span>
-              <span class="meta_val">${service.estimatedWaitMinutes ?? service.queueLength * service.expectedDuration}m</span>
+              <span class="meta_val">${service.estimatedWaitMinutes ?? (service.queueLength ?? 0) * service.expectedDuration}m</span>
             </div>
 
             <div class="meta_item">
@@ -1084,7 +1084,7 @@ function renderServices() {
               data-action="toggle_edit_form"
               data-id="${escapeHtml(service.id)}"
             >
-              ${state.editingServiceId === service.id ? "Close" : "Edit"}
+              ${String(state.editingServiceId) === String(service.id) ? "Close" : "Edit"}
             </button>
 
             <button
@@ -1130,7 +1130,7 @@ function renderServices() {
   } else if (state.editingServiceId) {
     const editingService = state.services.find(
       function (item) {
-        return item.id === state.editingServiceId;
+        return String(item.id) === String(state.editingServiceId);
       }
     );
 
@@ -1317,7 +1317,7 @@ function renderQueue() {
 
   const queueData = state.queues[service.id] || {
     service: service,
-    totalWaiting: service.queueLength,
+    totalWaiting: service.queueLength ?? 0,
     queue: []
   };
 
@@ -1343,9 +1343,9 @@ function renderQueue() {
       return `
         <option
           value="${escapeHtml(item.id)}"
-          ${item.id === state.selectedServiceId ? "selected" : ""}
+          ${String(item.id) === String(state.selectedServiceId) ? "selected" : ""}
         >
-          ${escapeHtml(item.name)} (${item.queueLength} waiting)
+          ${escapeHtml(item.name)} (${item.queueLength ?? 0} waiting)
         </option>
       `;
     })
@@ -1572,7 +1572,7 @@ function renderConnectionError() {
 function getSelectedService() {
   return (
     state.services.find(function (service) {
-      return service.id === state.selectedServiceId;
+      return String(service.id) === String(state.selectedServiceId);
     }) || null
   );
 }
