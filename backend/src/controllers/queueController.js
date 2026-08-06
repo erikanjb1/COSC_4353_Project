@@ -94,12 +94,12 @@ const queueService = require(
     }
   }
   
-  function getNotifications(req, res, next) {
+  async function getNotifications(req, res, next) {
     try {
       res.status(200).json({
         success: true,
         data:
-          queueService.getUserNotifications(
+          await queueService.getUserNotifications(
             req.user.id
           )
       });
@@ -108,12 +108,12 @@ const queueService = require(
     }
   }
   
-  function getHistory(req, res, next) {
+  async function getHistory(req, res, next) {
     try {
       res.status(200).json({
         success: true,
         data:
-          queueService.getUserHistory(
+          await queueService.getUserHistory(
             req.user.id
           )
       });

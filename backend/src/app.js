@@ -8,6 +8,7 @@ const activeQueueRoutes = require("./routes/activeQueueRoutes");
 
 const serviceManagementRoutes = require("./routes/serviceManagementRoutes");
 const authRoutes = require("./routes/authRoutes");
+const activityRoutes = require("./routes/activityRoutes");
 const HttpError = require("./utils/httpError");
 const { checkConnection } = require("./data/db");
 
@@ -51,6 +52,9 @@ app.use("/api/queues", serviceManagementRoutes);
 
 // Backend User Authentication Management APIs
 app.use("/api/auth", authRoutes);
+
+// Backend Notification and History APIs
+app.use("/api", activityRoutes);
 
 // Invalid API routes
 app.use("/api", function (_req, _res, next) {

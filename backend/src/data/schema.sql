@@ -54,9 +54,9 @@ CREATE TABLE IF NOT EXISTS QueueEntry(
 CREATE TABLE IF NOT EXISTS Notification(
     Notification_ID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
     User_ID INT NOT NULL,
-    Message VARCHAR(255),
-    TimeCode TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Status VARCHAR(30),
+    Message VARCHAR(255) NOT NULL,
+    Timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    Status ENUM('sent', 'viewed') NOT NULL DEFAULT 'sent',
     CONSTRAINT fk_Notification_UserCredentials FOREIGN KEY (User_ID) REFERENCES UserCredentials (User_ID)
 );
 
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS History(
     Service_Name VARCHAR(100) NOT NULL,
     Joined_At DATETIME NOT NULL,
     Completed_At DATETIME NOT NULL,
-    Outcome ENUM('served', 'left') NOT NULL,
+    Outcome ENUM('joined', 'served', 'left') NOT NULL,
     CONSTRAINT fk_History_QueueEntry FOREIGN KEY (QueueEntry_ID) REFERENCES QueueEntry (QueueEntry_ID),
     CONSTRAINT fk_History_User FOREIGN KEY (User_ID) REFERENCES UserCredentials (User_ID),
     CONSTRAINT fk_History_Service FOREIGN KEY (Service_ID) REFERENCES Service (Service_ID) ON DELETE SET NULL
