@@ -278,6 +278,40 @@ function formatTicketTimer(totalSeconds) {
   );
 }
 
+function isMissingUserError(error) {
+  return (
+    error.status === 404 &&
+    error.message === "User was not found."
+  );
+}
+
+function showAuthRequiredMessage() {
+  const serviceError =
+    document.getElementById("serviceError");
+
+  serviceError.textContent =
+    "Please register or log in before joining a queue. ";
+
+  const registerLink =
+    document.createElement("a");
+  registerLink.href = "/register";
+  registerLink.textContent = "Register";
+
+  const loginLink =
+    document.createElement("a");
+  loginLink.href = "/login";
+  loginLink.textContent = "Log in";
+
+  serviceError.appendChild(registerLink);
+  serviceError.appendChild(
+    document.createTextNode(" or ")
+  );
+  serviceError.appendChild(loginLink);
+  serviceError.appendChild(
+    document.createTextNode(".")
+  );
+}
+
 // Navigation
 function setupNavigation() {
   const navButtons =
@@ -616,6 +650,17 @@ function setupJoinQueueForm() {
           "success"
         );
       } catch (error) {
+        if (isMissingUserError(error)) {
+          showAuthRequiredMessage();
+
+          displayMessage(
+            "Please register or log in before joining a queue.",
+            "error"
+          );
+
+          return;
+        }
+
         document.getElementById(
           "serviceError"
         ).textContent =
