@@ -429,7 +429,9 @@ function renderServices() {
       document.createElement("div");
 
     serviceCard.className =
-      "service-card";
+      service.isOpen
+        ? "service-card"
+        : "service-card service-card_closed";
 
     const estimatedWait =
       service.estimatedWaitMinutes ??
@@ -440,23 +442,31 @@ function renderServices() {
       <h4>${service.name}</h4>
       <p>${service.description}</p>
       <span>
-        ${service.queueLength} people waiting
+        ${service.isOpen
+          ? service.queueLength + " people waiting"
+          : "Closed"}
       </span>
-      <span>
-        ${formatTicketTimer(
-          estimatedWait * 60
-        )} estimated wait
-      </span>
+      ${
+        service.isOpen
+          ? `<span>
+              ${formatTicketTimer(
+                estimatedWait * 60
+              )} estimated wait
+            </span>`
+          : ""
+      }
     `;
 
-    serviceCard.addEventListener(
-      "click",
-      function () {
-        selectServiceFromCard(
-          service.id
-        );
-      }
-    );
+    if (service.isOpen) {
+      serviceCard.addEventListener(
+        "click",
+        function () {
+          selectServiceFromCard(
+            service.id
+          );
+        }
+      );
+    }
 
     activeServicesDiv.appendChild(
       serviceCard
@@ -466,7 +476,10 @@ function renderServices() {
       document.createElement("option");
 
     option.value = service.id;
-    option.textContent = service.name;
+    option.textContent = service.isOpen
+      ? service.name
+      : service.name + " (Closed)";
+    option.disabled = !service.isOpen;
 
     serviceSelect.appendChild(option);
   });
@@ -475,7 +488,8 @@ function renderServices() {
     services.some(function (service) {
       return (
         String(service.id) ===
-        String(previousSelection)
+          String(previousSelection) &&
+        service.isOpen
       );
     });
 
@@ -580,6 +594,15 @@ function setupJoinQueueForm() {
           "serviceError"
         ).textContent =
           "Please select a service before joining the queue.";
+
+        return;
+      }
+
+      if (!selectedService.isOpen) {
+        document.getElementById(
+          "serviceError"
+        ).textContent =
+          "This service queue is closed.";
 
         return;
       }
