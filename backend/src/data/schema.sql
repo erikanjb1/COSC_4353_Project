@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS Notification(
     Notification_ID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
     User_ID INT NOT NULL,
     Message VARCHAR(255) NOT NULL,
-    Timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    Timestamp Timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     Status ENUM('sent', 'viewed') NOT NULL DEFAULT 'sent',
     CONSTRAINT fk_Notification_UserCredentials FOREIGN KEY (User_ID) REFERENCES UserCredentials (User_ID)
 );
