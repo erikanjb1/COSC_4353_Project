@@ -140,6 +140,15 @@ function createQueueRepository(database = null) {
         return null;
       }
 
+      await execute(
+        database,
+        `UPDATE Service s
+         INNER JOIN \`Queue\` q ON q.Service_ID = s.Service_ID
+         SET s.Is_Open = ?
+         WHERE q.Queue_ID = ?`,
+        [status === 'open', queueId]
+      );
+
       return repository.findById(queueId);
     }
   };

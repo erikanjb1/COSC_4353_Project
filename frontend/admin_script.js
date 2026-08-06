@@ -547,7 +547,10 @@ async function toggleActiveQueueStatus(queueId, currentStatus) {
       nextStatus
     );
 
-    await loadActiveQueues();
+    await Promise.all([
+      loadServices(),
+      loadActiveQueues()
+    ]);
 
     showNotification(
       "Queue " + parsedQueueId + " is now " + nextStatus + ".",

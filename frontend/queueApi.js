@@ -1,11 +1,15 @@
 'use strict';
 
-const ACTIVE_QUEUE_API_URL = 'http://localhost:3000/api/active-queues';
+const ACTIVE_QUEUE_API_URL = '/api/active-queues';
 
 function getQueueAuthHeaders() {
   const headers = {
     'Content-Type': 'application/json'
   };
+
+  const isAdminPage =
+    window.location.pathname === '/admin' ||
+    window.location.pathname.endsWith('/admin.html');
 
   
   const token = localStorage.getItem('token');
@@ -14,8 +18,13 @@ function getQueueAuthHeaders() {
   }
 
   
-  const userId = localStorage.getItem('userId');
-  const role = localStorage.getItem('role');
+  const userId = isAdminPage
+    ? localStorage.getItem('userId') || '1'
+    : localStorage.getItem('userId');
+
+  const role = isAdminPage
+    ? 'administrator'
+    : localStorage.getItem('role');
 
   if (userId) {
     headers['x-user-id'] = userId;
@@ -40,7 +49,11 @@ async function queueApiRequest(url, options = {}) {
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(result.message || 'Queue request failed.');
+    throw new Error(
+      result.error?.message ||
+        result.message ||
+        'Queue request failed.'
+    );
   }
 
   return result.data;
