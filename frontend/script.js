@@ -278,6 +278,22 @@ function formatTicketTimer(totalSeconds) {
   );
 }
 
+function formatHistoryOutcome(outcome) {
+  if (outcome === "joined") {
+    return "Joined Queue";
+  }
+
+  if (outcome === "left") {
+    return "Left Queue";
+  }
+
+  if (outcome === "served") {
+    return "Served";
+  }
+
+  return outcome || "-";
+}
+
 function isMissingUserError(error) {
   return (
     error.status === 404 &&
@@ -833,13 +849,7 @@ async function refreshQueueStatus(
         notifyWhenInactive
       ) {
         const servedNotification =
-          notifications.find(
-            function (notification) {
-              return (
-                notification.type === "SERVED"
-              );
-            }
-          );
+          notifications[0];
 
         displayMessage(
           servedNotification?.message ||
@@ -1076,7 +1086,9 @@ function updateHistory() {
         </td>
 
         <td>
-          ${record.outcome}
+          ${formatHistoryOutcome(
+            record.outcome
+          )}
         </td>
       `;
 
