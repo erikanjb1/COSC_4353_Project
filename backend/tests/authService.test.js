@@ -12,15 +12,32 @@ const {
 
 test.beforeEach(async function () {
   await pool.execute(
+    `
+    DELETE UserProfile
+    FROM UserProfile
+    JOIN UserCredentials
+      ON UserProfile.User_ID = UserCredentials.User_ID
+    WHERE UserCredentials.Email LIKE ?
+    `,
+    ["%example.com"]
+  );
+
+  await pool.execute(
     "DELETE FROM UserCredentials WHERE Email LIKE ?",
     ["%example.com"]
   );
+});
+
+test.after(async function () {
+  await pool.end();
 });
 
 test(
   "registers a valid user",
   async function () {
     const result = await registerUser({
+      firstName: "Jane",
+      lastName: "Doe",
       email: "student@example.com",
       password: "Password123"
     });
@@ -41,6 +58,8 @@ test(
   "rejects duplicate emails",
   async function () {
     await registerUser({
+      firstName: "Jane",
+      lastName: "Doe",
       email: "student@example.com",
       password: "Password123"
     });
@@ -48,6 +67,8 @@ test(
     await assert.rejects(
       async function () {
         await registerUser({
+          firstName: "Jane",
+          lastName: "Doe",
           email: "student@example.com",
           password: "AnotherPassword123"
         });
@@ -63,6 +84,8 @@ test(
   "logs in a registered user",
   async function () {
     await registerUser({
+      firstName: "Jane",
+      lastName: "Doe",
       email: "student@example.com",
       password: "Password123"
     });
@@ -88,6 +111,8 @@ test(
   "rejects an incorrect password",
   async function () {
     await registerUser({
+      firstName: "Jane",
+      lastName: "Doe",
       email: "student@example.com",
       password: "Password123"
     });
@@ -106,58 +131,12 @@ test(
   }
 );
 
-test("rejects login with missing password", 
+test("rejects login with missing password",
   async function () {
     await assert.rejects(
       async function () {
-        await loginUser({ 
-          email: "a@b.com" 
-        });
-      }, 
-      function (error) { 
-        return error.status === 400; 
-      }
-    );
-  }
-);
-
-test("rejects password shorter than 8 characters", 
-  async function () {
-    await assert.rejects(
-      async function () {
-        await registerUser({ 
-          email: "a@b.com", 
-          password: "short" 
-        });
-      }, 
-      function (error) { 
-        return error.status === 400; 
-      }
-    );
-  }
-);
-
-test("rejects password longer than 30 characters",
-  async function () {
-    await assert.rejects(
-      async function () {
-      await registerUser({ 
-        email: "a@b.com", 
-        password: "P".repeat(31) 
-      });
-    }, 
-    function (error) { 
-      return error.status === 400; 
-    });
-  }
-);
-
-test("rejects registration with missing email", 
-  async function () {
-    await assert.rejects(
-      async function () {
-        await registerUser({ 
-          password: "Password123" 
+        await loginUser({
+          email: "a@b.com"
         });
       },
       function (error) {
@@ -167,32 +146,85 @@ test("rejects registration with missing email",
   }
 );
 
-test("rejects registration with invalid email format", 
+test("rejects password shorter than 8 characters",
   async function () {
     await assert.rejects(
       async function () {
-        await registerUser({ 
-          email: "not-an-email", 
-          password: "Password123" 
+        await registerUser({
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "a@b.com",
+          password: "short"
         });
-      }, 
-      function (error) { 
-        return error.status === 400; 
+      },
+      function (error) {
+        return error.status === 400;
+      });
+  }
+);
+
+test("rejects password longer than 30 characters",
+  async function () {
+    await assert.rejects(
+      async function () {
+        await registerUser({
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "a@b.com",
+          password: "P".repeat(31)
+        });
+      },
+      function (error) {
+        return error.status === 400;
+      });
+  }
+);
+
+test("rejects registration with missing email",
+  async function () {
+    await assert.rejects(
+      async function () {
+        await registerUser({
+          firstName: "Jane",
+          lastName: "Doe",
+          password: "Password123"
+        });
+      },
+      function (error) {
+        return error.status === 400;
       }
     );
   }
 );
 
-test("rejects login with missing email", 
+test("rejects registration with invalid email format",
   async function () {
     await assert.rejects(
       async function () {
-        await loginUser({ 
-          password: "Password123" 
+        await registerUser({
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "not-an-email",
+          password: "Password123"
         });
-      }, 
-    function (error) { 
-      return error.status === 400;
-    });
+      },
+      function (error) {
+        return error.status === 400;
+      }
+    );
+  }
+);
+
+test("rejects login with missing email",
+  async function () {
+    await assert.rejects(
+      async function () {
+        await loginUser({
+          password: "Password123"
+        });
+      },
+      function (error) {
+        return error.status === 400;
+      });
   }
 );
