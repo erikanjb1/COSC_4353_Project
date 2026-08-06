@@ -25,7 +25,6 @@ const state = {
   editingServiceId: null,
   formErrors: null,
   pendingFormValues: null,
-  localQueue: null,
   leavingEntryIds: new Set()
 };
 
@@ -366,69 +365,77 @@ async function loadQueue(serviceId) {
 
   state.queues[serviceId] = result;
 
-  // Reset the reorder/remove sandbox to match the real backend order.
-  state.localQueue = Array.isArray(result.queue)
-    ? result.queue.map(function (entry) {
-        return { ...entry };
-      })
-    : [];
-
   return result;
 }
 
-function moveLocalQueueEntry(entryId, direction) {
-  if (!Array.isArray(state.localQueue)) {
+async function moveLocalQueueEntry(entryId, direction) {
+  if (state.busy) {
     return;
   }
 
-  const index = state.localQueue.findIndex(
-    function (entry) {
-      return entry.id === entryId;
-    }
-  );
-
-  const targetIndex = index + direction;
-
-  if (
-    index === -1 ||
-    targetIndex < 0 ||
-    targetIndex >= state.localQueue.length
-  ) {
-    return;
-  }
-
-  const reordered = state.localQueue.slice();
-  const moved = reordered[index];
-
-  reordered[index] = reordered[targetIndex];
-  reordered[targetIndex] = moved;
-
-  state.localQueue = reordered;
+  state.busy = true;
   render();
+
+  try {
+    await apiRequest(
+      "/" +
+        encodeURIComponent(state.selectedServiceId) +
+        "/entries/" +
+        encodeURIComponent(entryId) +
+        "/move",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          direction: direction < 0 ? "up" : "down"
+        })
+      }
+    );
+
+    await loadQueue(state.selectedServiceId);
+  } catch (error) {
+    handleError(error);
+  } finally {
+    state.busy = false;
+    render();
+  }
 }
 
-function removeLocalQueueEntry(entryId) {
-  if (
-    !Array.isArray(state.localQueue) ||
-    state.leavingEntryIds.has(entryId)
-  ) {
+// Removes a visitor from the real queue (admin action), not just
+// from the on-screen list.
+async function removeLocalQueueEntry(entryId) {
+  if (state.busy || state.leavingEntryIds.has(entryId)) {
     return;
   }
 
   state.leavingEntryIds.add(entryId);
   render();
 
-  window.setTimeout(function () {
-    state.leavingEntryIds.delete(entryId);
+  await new Promise(function (resolve) {
+    window.setTimeout(resolve, 200);
+  });
 
-    state.localQueue = state.localQueue.filter(
-      function (entry) {
-        return entry.id !== entryId;
-      }
+  state.busy = true;
+  render();
+
+  try {
+    await apiRequest(
+      "/" +
+        encodeURIComponent(state.selectedServiceId) +
+        "/entries/" +
+        encodeURIComponent(entryId),
+      { method: "DELETE" }
     );
 
+    await loadQueue(state.selectedServiceId);
+    showNotification("Visitor removed from the queue.", "success");
+  } catch (error) {
+    handleError(error);
+  } finally {
+    state.leavingEntryIds.delete(entryId);
+    state.busy = false;
+    updateTopbar();
     render();
-  }, 200);
+  }
 }
 
 // Administrator requirement: serve the next user.
@@ -439,9 +446,7 @@ async function serveNext(serviceId) {
 
   state.busy = true;
 
-  // A brief visual cue on the entry that's about to be served, using
-  // the real backend order (not the local reorder sandbox), since
-  // that's who serve-next actually acts on.
+  // A brief visual cue on the entry that's about to be served.
   const queueData = state.queues[serviceId];
   const topEntryId =
     queueData &&
@@ -656,17 +661,17 @@ function setupActionHandlers() {
     }
 
     if (action === "queue_move_up") {
-      moveLocalQueueEntry(entryId, -1);
+      await moveLocalQueueEntry(entryId, -1);
       return;
     }
 
     if (action === "queue_move_down") {
-      moveLocalQueueEntry(entryId, 1);
+      await moveLocalQueueEntry(entryId, 1);
       return;
     }
 
     if (action === "queue_remove") {
-      removeLocalQueueEntry(entryId);
+      await removeLocalQueueEntry(entryId);
       return;
     }
 
@@ -1321,22 +1326,9 @@ function renderQueue() {
     queue: []
   };
 
-  const backendQueue = Array.isArray(queueData.queue)
+  const displayQueue = Array.isArray(queueData.queue)
     ? queueData.queue
     : [];
-
-  const displayQueue = Array.isArray(state.localQueue)
-    ? state.localQueue
-    : backendQueue;
-
-  const isReordered =
-    displayQueue.length !== backendQueue.length ||
-    displayQueue.some(function (entry, index) {
-      return (
-        !backendQueue[index] ||
-        entry.id !== backendQueue[index].id
-      );
-    });
 
   const options = state.services
     .map(function (item) {
@@ -1388,7 +1380,7 @@ function renderQueue() {
               class="icon_btn"
               data-action="queue_move_up"
               data-entry-id="${escapeHtml(entry.id)}"
-              title="Move up (UI only)"
+              title="Move up"
               ${index === 0 ? "disabled" : ""}
             >
               &uarr;
@@ -1398,7 +1390,7 @@ function renderQueue() {
               class="icon_btn"
               data-action="queue_move_down"
               data-entry-id="${escapeHtml(entry.id)}"
-              title="Move down (UI only)"
+              title="Move down"
               ${index === displayQueue.length - 1 ? "disabled" : ""}
             >
               &darr;
@@ -1408,7 +1400,7 @@ function renderQueue() {
               class="icon_btn is_danger"
               data-action="queue_remove"
               data-entry-id="${escapeHtml(entry.id)}"
-              title="Remove from view (UI only)"
+              title="Remove from queue"
             >
               &times;
             </button>
@@ -1462,23 +1454,11 @@ function renderQueue() {
           <button
             class="serve_btn"
             data-action="serve_next"
-            ${backendQueue.length === 0 || state.busy ? "disabled" : ""}
+            ${displayQueue.length === 0 || state.busy ? "disabled" : ""}
           >
             ${state.busy ? "Working..." : "Serve next -&gt;"}
           </button>
         </div>
-
-        ${
-          isReordered
-            ? `<div class="empty_state" style="border-radius: 10px; padding: 10px 16px; margin-bottom: 12px; text-align: left; background: #fffbeb; border: 1px solid #fde68a">
-                <div class="empty_body" style="color: #92400e">
-                  This order is a local preview only and has not been saved.
-                  "Serve next" still uses the real backend queue order.
-                  Click "Refresh queue" to discard these changes.
-                </div>
-              </div>`
-            : ""
-        }
 
         <div class="queue_list">
           <div class="queue_list_header">
@@ -1536,7 +1516,7 @@ function renderQueue() {
 
           <div class="info_row">
             <span class="info_row_label">Waiting</span>
-            <span class="info_row_val">${backendQueue.length}</span>
+            <span class="info_row_val">${displayQueue.length}</span>
           </div>
 
           <div class="info_row">
@@ -1546,7 +1526,7 @@ function renderQueue() {
 
           <div class="info_row">
             <span class="info_row_label">Total est. wait</span>
-            <span class="info_row_val">${service.estimatedWaitMinutes ?? backendQueue.length * service.expectedDuration}m</span>
+            <span class="info_row_val">${service.estimatedWaitMinutes ?? displayQueue.length * service.expectedDuration}m</span>
           </div>
         </div>
       </div>

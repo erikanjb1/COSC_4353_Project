@@ -61,4 +61,18 @@ router.post(
   controller.serveNext
 );
 
+router.post(
+  "/:serviceId/entries/:entryId/move",
+  requireAuth,
+  requireAdministrator,
+  controller.moveQueueEntry
+);
+
+router.delete(
+  "/:serviceId/entries/:entryId",
+  requireAuth,
+  requireAdministrator,
+  controller.removeQueueEntry
+);
+
 module.exports = router;

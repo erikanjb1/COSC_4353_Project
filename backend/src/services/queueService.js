@@ -554,6 +554,125 @@ async function leaveQueue({
   return updatedEntry;
 }
 
+async function moveQueueEntry({
+  serviceId,
+  entryId,
+  direction
+}, repository = queueEntryRepository) {
+  const selectedServiceId = validatePositiveInteger(
+    serviceId,
+    "Service ID"
+  );
+
+  if (direction !== "up" && direction !== "down") {
+    throw new HttpError(
+      400,
+      "direction must be 'up' or 'down'."
+    );
+  }
+
+  await getService(selectedServiceId, repository);
+
+  const queue = await activeQueueForService(
+    selectedServiceId,
+    repository
+  );
+
+  const index = queue.findIndex(function (entry) {
+    return String(entry.id) === String(entryId);
+  });
+
+  if (index === -1) {
+    throw new HttpError(
+      404,
+      "Active queue entry was not found."
+    );
+  }
+
+  const targetIndex =
+    direction === "up" ? index - 1 : index + 1;
+
+  if (targetIndex < 0 || targetIndex >= queue.length) {
+    throw new HttpError(
+      409,
+      "Entry cannot move further in that direction."
+    );
+  }
+
+  const current = queue[index];
+  const target = queue[targetIndex];
+
+  await repository.swapEntryPositions(
+    current.queueEntryId,
+    current.position,
+    target.queueEntryId,
+    target.position
+  );
+
+  return viewQueue(selectedServiceId, repository);
+}
+
+async function adminRemoveEntry({
+  serviceId,
+  entryId
+}, repository = queueEntryRepository) {
+  const selectedServiceId = validatePositiveInteger(
+    serviceId,
+    "Service ID"
+  );
+
+  const service = await getService(
+    selectedServiceId,
+    repository
+  );
+
+  const queue = await activeQueueForService(
+    selectedServiceId,
+    repository
+  );
+
+  const entry = queue.find(function (item) {
+    return String(item.id) === String(entryId);
+  });
+
+  if (!entry) {
+    throw new HttpError(
+      404,
+      "Active queue entry was not found."
+    );
+  }
+
+  const updatedEntry = await repository.updateEntryStatus(
+    entry.queueEntryId,
+    "canceled"
+  );
+
+  await repository.resequenceQueue(entry.queueId);
+
+  await addHistory(
+    updatedEntry,
+    service,
+    "left",
+    updatedEntry.leftAt,
+    repository
+  );
+
+  await addNotification(
+    updatedEntry.userId,
+    "QUEUE_LEFT",
+    `You were removed from the ${service.name} queue by an administrator.`,
+    updatedEntry.id,
+    repository
+  );
+
+  await notifyUsersCloseToService(
+    selectedServiceId,
+    repository
+  );
+
+  return updatedEntry;
+}
+
 async function viewQueue(
   serviceId,
   repository = queueEntryRepository
@@ -806,6 +925,8 @@ module.exports = {
   leaveQueue,
   viewQueue,
   serveNext,
+  moveQueueEntry,
+  adminRemoveEntry,
   estimateWait,
   getUserStatus,
   listServices,

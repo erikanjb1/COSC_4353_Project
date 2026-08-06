@@ -66,6 +66,39 @@ const queueService = require(
     }
   }
   
+  async function moveQueueEntry(req, res, next) {
+    try {
+      const result = await queueService.moveQueueEntry({
+        serviceId: req.params.serviceId,
+        entryId: req.params.entryId,
+        direction: req.body.direction
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async function removeQueueEntry(req, res, next) {
+    try {
+      const result = await queueService.adminRemoveEntry({
+        serviceId: req.params.serviceId,
+        entryId: req.params.entryId
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async function getStatus(req, res, next) {
     try {
       const result =
@@ -127,6 +160,8 @@ const queueService = require(
     leaveQueue,
     viewQueue,
     serveNext,
+    moveQueueEntry,
+    removeQueueEntry,
     getStatus,
     listServices,
     getNotifications,

@@ -261,12 +261,39 @@ function createQueueEntryRepository(database = null) {
          WHERE q.Service_ID = ? AND qe.Status = 'waiting'
          ORDER BY
            FIELD(qe.Priority, 'high', 'normal', 'low'),
-           qe.Join_Time ASC,
+           qe.Position ASC,
            qe.QueueEntry_ID ASC`,
         [serviceId]
       );
 
       return rows.map(mapEntry);
+    },
+
+    async swapEntryPositions(
+      firstEntryId,
+      firstPosition,
+      secondEntryId,
+      secondPosition
+    ) {
+      await execute(
+        database,
+        `
+          UPDATE QueueEntry
+          SET Position = ?
+          WHERE QueueEntry_ID = ?
+        `,
+        [secondPosition, firstEntryId]
+      );
+
+      await execute(
+        database,
+        `
+          UPDATE QueueEntry
+          SET Position = ?
+          WHERE QueueEntry_ID = ?
+        `,
+        [firstPosition, secondEntryId]
+      );
     },
 
     async countWaitingEntries(queueId) {
