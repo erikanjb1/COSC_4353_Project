@@ -8,7 +8,8 @@
         "start": "node --env-file=.env src/server.js",
         "dev": "node --watch --env-file=.env src/server.js",
         "test": "node --env-file=.env --test",
-        "coverage": "node --env-file=.env --test --experimental-test-coverage"
+        "coverage": "node --env-file=.env --test --experimental-test-coverage",
+        "seed:admin": "node --env-file=.env src/data/adminacc.js"
     },
     "dependencies": {
         "bcrypt": "^6.0.0",

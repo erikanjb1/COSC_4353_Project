@@ -200,7 +200,7 @@ function validateRegisterForm(
         );
     } else if (password.length > 30) {
         errors.push(
-        "Password must not exceed 64 characters"
+        "Password must not exceed 30 characters"
         );
     }
 
